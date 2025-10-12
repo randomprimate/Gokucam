@@ -1,3 +1,4 @@
+# gokucam/camera.py
 import time, subprocess, io
 from pathlib import Path
 from threading import Lock, Condition
@@ -5,31 +6,6 @@ from threading import Lock, Condition
 from picamera2 import Picamera2
 from picamera2.encoders import MJPEGEncoder, JpegEncoder
 from picamera2.outputs import FileOutput
-
-def _make_mjpeg_encoder(self):
-    try:
-        return MJPEGEncoder(quality=self.cfg["JPEG_Q"])
-    except TypeError:
-        try:
-            return MJPEGEncoder(q=self.cfg["JPEG_Q"])
-        except TypeError:
-            # Last resort: set attribute or fall back to JpegEncoder
-            enc = None
-            try:
-                enc = MJPEGEncoder()
-                # some builds expose .quality or .set_quality()
-                try:
-                    enc.quality = self.cfg["JPEG_Q"]
-                except Exception:
-                    try:
-                        enc.set_quality(self.cfg["JPEG_Q"]) 
-                    except Exception:
-                        pass
-                return enc
-            except Exception:
-                # Ultimate fallback: single-frame JPEG encoder in a loop also works
-                return JpegEncoder(q=self.cfg["JPEG_Q"])
-
 
 class _Buffer(io.BufferedIOBase):
     def __init__(self):
@@ -46,7 +22,7 @@ class Camera:
         self.cfg = cfg
         self.picam = Picamera2()
 
-        # JPEG/MJPEG encoders expect YUV420 for main stream on most builds
+        # YUV420 is the most compatible for JPEG/MJPEG encoders
         w, h = tuple(cfg["CAM_SIZE"])
         self.video_cfg = self.picam.create_video_configuration(
             main={"size": (w, h), "format": "YUV420"}
@@ -57,10 +33,33 @@ class Camera:
         self.lock = Lock()
         self.streaming = False
 
-        # Start immediately so the home page shows video
         self.start_stream()
 
-    # -------- streaming control --------
+    # ---------- encoder helper (handles API differences) ----------
+    def _make_mjpeg_encoder(self):
+        q = int(self.cfg["JPEG_Q"])
+        # Try quality=, then q=, then attribute/setter, finally fall back to JpegEncoder
+        try:
+            return MJPEGEncoder(quality=q)
+        except TypeError:
+            try:
+                return MJPEGEncoder(q=q)
+            except TypeError:
+                try:
+                    enc = MJPEGEncoder()
+                    try:
+                        enc.quality = q
+                    except Exception:
+                        try:
+                            enc.set_quality(q)
+                        except Exception:
+                            pass
+                    return enc
+                except Exception:
+                    # ultimate fallback: single-frame JPEG encoder also works for streaming
+                    return JpegEncoder(q=q)
+
+    # ---------- streaming control ----------
     def start_stream(self):
         if self.streaming:
             return
@@ -84,13 +83,11 @@ class Camera:
         self.streaming = False
 
     def ensure_streaming(self):
-        """Call at the start of any route that needs frames."""
         if not self.streaming:
-            # reconfigure in case previous stop() changed state
             self.picam.configure(self.video_cfg)
             self.start_stream()
 
-    # -------- producers --------
+    # ---------- producers ----------
     def mjpeg_frames(self):
         self.ensure_streaming()
         boundary = b'--frame'
@@ -109,7 +106,7 @@ class Camera:
             self.buffer.cv.wait(timeout=1.0)
             return self.buffer.frame
 
-    # -------- recording --------
+    # ---------- recording ----------
     def record_clip(self, mode: str, secs: int, out_path: Path):
         """Pause MJPEG → rpicam-vid → resume."""
         presets = dict(social=self.cfg["SOCIAL"], archival=self.cfg["ARCHIVAL"])
@@ -118,8 +115,9 @@ class Camera:
         br = preset["bitrate"]; rot = preset["rotation"]
 
         with self.lock:
+            # fully release camera
             self.stop_stream()
-            time.sleep(0.35)  # let kernel release
+            time.sleep(0.35)  # give kernel time to release
 
             cmd = ["rpicam-vid", "--nopreview",
                    "--width", str(w), "--height", str(h),
@@ -127,9 +125,10 @@ class Camera:
                    "-t", str(secs * 1000), "-o", str(out_path)]
             if rot:
                 cmd[1:1] = ["--rotation", str(rot)]
+
             try:
                 subprocess.run(cmd, check=True)
             finally:
-                # reconfigure & resume
+                # reconfigure & resume stream
                 self.picam.configure(self.video_cfg)
                 self.start_stream()
