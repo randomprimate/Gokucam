@@ -61,7 +61,7 @@ pip install -r requirements.txt
 ### 3️⃣ Run the app
 
 ```bash
-python3 gokucam_live.py
+python run.py
 ```
 
 Visit your Pi’s IP:
@@ -139,4 +139,4 @@ MIT License — feel free to fork, modify, and cite the project. (Lic file avail
 
 --- 
 
-__Created by @randomprimate, originally to study his sulcata tortoise Goku.__
+_Created by @randomprimate, originally to study his sulcata tortoise Goku._
