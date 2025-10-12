@@ -20,20 +20,40 @@ class _Buffer(io.BufferedIOBase):
 class Camera:
     def __init__(self, cfg):
         self.cfg = cfg
-        self.picam = Picamera2()
+        self.buffer = _Buffer()
+        self.lock = Lock()
+        self.streaming = False
 
-        # YUV420 is the most compatible for JPEG/MJPEG encoders
-        w, h = tuple(cfg["CAM_SIZE"])
+        # create & configure the camera object
+        self._create_picam()
+        self.start_stream()
+
+    def _create_picam(self):
+        """Create a new Picamera2 instance and configure it."""
+        from picamera2 import Picamera2  # local import to allow full close/recreate
+        self.picam = Picamera2()
+        w, h = tuple(self.cfg["CAM_SIZE"])
         self.video_cfg = self.picam.create_video_configuration(
             main={"size": (w, h), "format": "YUV420"}
         )
         self.picam.configure(self.video_cfg)
 
-        self.buffer = _Buffer()
-        self.lock = Lock()
-        self.streaming = False
-
-        self.start_stream()
+    def _close_picam(self):
+        """Close Picamera2 completely to release the /dev/video node."""
+        try:
+            # stop recording if needed
+            try:
+                self.picam.stop_recording()
+            except Exception:
+                pass
+            try:
+                self.picam.stop()
+            except Exception:
+                pass
+            # fully close the device
+            self.picam.close()
+        except Exception as e:
+            print(f"[!] picam.close warn: {e}")
 
     # ---------- encoder helper (handles API differences) ----------
     def _make_mjpeg_encoder(self):
@@ -106,29 +126,40 @@ class Camera:
             self.buffer.cv.wait(timeout=1.0)
             return self.buffer.frame
 
-    # ---------- recording ----------
+    # ---------- recording (fully release → record → recreate) ----------
     def record_clip(self, mode: str, secs: int, out_path: Path):
-        """Pause MJPEG → rpicam-vid → resume."""
+        """
+        Fully close Picamera2 so rpicam-vid can acquire the sensor, then recreate.
+        """
         presets = dict(social=self.cfg["SOCIAL"], archival=self.cfg["ARCHIVAL"])
         preset = presets.get(mode, self.cfg["ARCHIVAL"])
         w, h = preset["size"]; fps = preset["fps"]
         br = preset["bitrate"]; rot = preset["rotation"]
 
-        with self.lock:
-            # fully release camera
-            self.stop_stream()
-            time.sleep(0.35)  # give kernel time to release
+        cmd = ["rpicam-vid", "--nopreview",
+               "--width", str(w), "--height", str(h),
+               "--framerate", str(fps), "--bitrate", str(br),
+               "-t", str(secs * 1000), "-o", str(out_path)]
+        if rot:
+            cmd[1:1] = ["--rotation", str(rot)]
 
-            cmd = ["rpicam-vid", "--nopreview",
-                   "--width", str(w), "--height", str(h),
-                   "--framerate", str(fps), "--bitrate", str(br),
-                   "-t", str(secs * 1000), "-o", str(out_path)]
-            if rot:
-                cmd[1:1] = ["--rotation", str(rot)]
+        with self.lock:
+            self.stop_stream()
+            self._close_picam()
+            time.sleep(0.6)  # give kernel/userspace a moment to drop handles
 
             try:
-                subprocess.run(cmd, check=True)
-            finally:
-                # reconfigure & resume stream
-                self.picam.configure(self.video_cfg)
-                self.start_stream()
+                print(f"[+] rpicam-vid start ({mode}) → {out_path}")
+                res = subprocess.run(
+                    cmd, check=True, text=True,
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE
+                )
+                if res.stderr:
+                    print("[rpicam-vid stderr]", res.stderr.strip())
+            finally:            
+                try:
+                    self._create_picam()
+                    self.start_stream()
+                    print("[+] MJPEG stream resumed")
+                except Exception as e:
+                    print(f"[!] Failed to resume stream: {e}")
