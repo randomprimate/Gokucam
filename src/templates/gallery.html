@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}GokuCam Gallery{% endblock %}
+{% block body %}
+<h2>Gallery</h2>
+<p><a href="{{ url_for('ui.index') }}">← Back</a></p>
+<ul class="gallery">
+  {% if items %}
+    {% for f in items %}
+      {% set url = url_for('ui.captures', fname=f) %}
+      <li>
+        {% if f.lower().endswith('.jpg') %}
+          <a href="{{ url }}"><img src="{{ url }}" alt="{{ f }}"></a><br>{{ f }}
+        {% elif f.lower().endswith('.json') %}
+          <a href="{{ url }}">{{ f }}</a>
+        {% else %}
+          <video src="{{ url }}" controls></video><br>{{ f }}
+        {% endif %}
+      </li>
+    {% endfor %}
+  {% else %}
+    <p>No captures yet.</p>
+  {% endif %}
+</ul>
+{% endblock %}
