@@ -3,8 +3,33 @@ from pathlib import Path
 from threading import Lock, Condition
 
 from picamera2 import Picamera2
-from picamera2.encoders import MJPEGEncoder
+from picamera2.encoders import MJPEGEncoder, JpegEncoder
 from picamera2.outputs import FileOutput
+
+def _make_mjpeg_encoder(self):
+    try:
+        return MJPEGEncoder(quality=self.cfg["JPEG_Q"])
+    except TypeError:
+        try:
+            return MJPEGEncoder(q=self.cfg["JPEG_Q"])
+        except TypeError:
+            # Last resort: set attribute or fall back to JpegEncoder
+            enc = None
+            try:
+                enc = MJPEGEncoder()
+                # some builds expose .quality or .set_quality()
+                try:
+                    enc.quality = self.cfg["JPEG_Q"]
+                except Exception:
+                    try:
+                        enc.set_quality(self.cfg["JPEG_Q"]) 
+                    except Exception:
+                        pass
+                return enc
+            except Exception:
+                # Ultimate fallback: single-frame JPEG encoder in a loop also works
+                return JpegEncoder(q=self.cfg["JPEG_Q"])
+
 
 class _Buffer(io.BufferedIOBase):
     def __init__(self):
@@ -39,9 +64,8 @@ class Camera:
     def start_stream(self):
         if self.streaming:
             return
-        # MJPEGEncoder pushes continuous JPEG frames
-        self.picam.start_recording(MJPEGEncoder(q=self.cfg["JPEG_Q"]),
-                                   FileOutput(self.buffer))
+        encoder = self._make_mjpeg_encoder()
+        self.picam.start_recording(encoder, FileOutput(self.buffer))
         self.streaming = True
 
     def stop_stream(self):
