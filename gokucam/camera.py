@@ -2,7 +2,6 @@ import time, subprocess, io
 from pathlib import Path
 from threading import Lock, Condition
 
-from picamera2 import Picamera2
 from picamera2.encoders import MJPEGEncoder, JpegEncoder
 from picamera2.outputs import FileOutput
 # add to imports at the top
@@ -30,6 +29,27 @@ class Camera:
         # create & configure the camera object
         self._create_picam()
         self.start_stream()
+
+    def _make_h264_encoder(self, bitrate: int):
+        try:
+            return H264Encoder(bitrate=bitrate)
+        except TypeError:
+            enc = H264Encoder()
+            try:
+                enc.bitrate = bitrate
+            except Exception:
+                pass
+            return enc
+
+    def _make_ffmpeg_output(self, path, fps: int):
+        try:
+            return FfmpegOutput(str(path), framerate=fps)
+        except TypeError:
+            try:
+                return FfmpegOutput(str(path), audio=False)
+            except TypeError:
+                return FfmpegOutput(str(path))
+
 
     def _create_picam(self):
         """Create a new Picamera2 instance and configure it."""
@@ -133,10 +153,10 @@ class Camera:
     def record_clip(self, secs: int, out_path: Path):
         """Record H.264 → MP4 in-process, without stopping MJPEG."""
         bitrate = int(self.cfg.get("BITRATE", 8_000_000))
-        fps = int(self.cfg.get("FPS", 25))
+        fps     = int(self.cfg.get("FPS", 25))
 
-        encoder = H264Encoder(bitrate=bitrate)
-        output = FfmpegOutput(str(out_path), framerate=fps)
+        encoder = self._make_h264_encoder(bitrate)
+        output  = self._make_ffmpeg_output(out_path, fps)
 
         self.picam.start_encoder(encoder, output)
         try:
