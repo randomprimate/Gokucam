@@ -1,7 +1,33 @@
-from flask import Blueprint, render_template, current_app, Response, send_from_directory, make_response
-import os
+from flask import Blueprint, render_template, current_app, Response, send_from_directory
+import os, datetime
 
 bp = Blueprint("ui", __name__)
+
+def _scan_items(snap_dir):
+    items = []
+    for f in os.listdir(snap_dir):
+        if not f.lower().endswith((".jpg", ".mp4", ".avi", ".json")):
+            continue
+        full = os.path.join(snap_dir, f)
+        try:
+            st = os.stat(full)
+        except FileNotFoundError:
+            continue
+        mtime = datetime.datetime.fromtimestamp(st.st_mtime)
+        items.append({
+            "name": f,
+            "url": f"/captures/{f}",
+            "ext": os.path.splitext(f)[1].lower(),
+            "size": st.st_size,
+            "mtime": mtime,
+            "date": mtime.strftime("%Y-%m-%d"),
+            "time": mtime.strftime("%H:%M:%S"),
+        })
+    items.sort(key=lambda x: x["mtime"], reverse=True)
+    grouped = {}
+    for it in items:
+        grouped.setdefault(it["date"], []).append(it)
+    return [(d, grouped[d]) for d in sorted(grouped.keys(), reverse=True)]
 
 @bp.get("/")
 def index():
@@ -26,6 +52,7 @@ def debug_jpg():
     frame = cam.snapshot_bytes()
     if not frame:
         return "no frame", 503
+    from flask import make_response
     resp = make_response(frame)
     resp.headers["Content-Type"] = "image/jpeg"
     resp.headers["Cache-Control"] = "no-cache"
@@ -34,10 +61,8 @@ def debug_jpg():
 @bp.get("/gallery")
 def gallery():
     snap_dir = current_app.config["SNAP_DIR"]
-    items = [f for f in os.listdir(snap_dir)
-             if f.lower().endswith((".jpg",".mp4",".avi",".json"))]
-    items.sort(reverse=True)
-    return render_template("gallery.html", items=items)
+    groups = _scan_items(snap_dir)
+    return render_template("gallery.html", groups=groups)
 
 @bp.get("/captures/<path:fname>")
 def captures(fname):

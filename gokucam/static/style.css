@@ -9,6 +9,20 @@ button:hover{background:#2c2c2c}
 .pill{padding:6px 10px;border:1px solid #333;border-radius:999px;font-size:12px;color:#bbb}
 .stat{margin-top:8px;color:#aaa;font-size:13px}
 a{color:#6cf}
+
 ul.gallery{display:flex;flex-wrap:wrap;gap:12px;list-style:none;padding:0;margin:0}
 ul.gallery li{flex:0 0 auto}
 ul.gallery img, ul.gallery video{max-width:320px}
+
+ul.gallery{display:flex;flex-wrap:wrap;gap:16px;list-style:none;padding:0;margin:0}
+ul.gallery li{flex:0 0 320px;background:#181818;border:1px solid #2a2a2a;border-radius:12px;overflow:hidden}
+ul.gallery img, ul.gallery video{width:100%;height:auto;display:block;background:#000}
+ul.gallery .meta{padding:10px;text-align:left}
+ul.gallery .meta .fn{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ul.gallery .meta .sub{color:#bbb;font-size:12px;margin-top:2px}
+ul.gallery .actions{margin-top:8px;display:flex;gap:10px}
+ul.gallery .actions a, ul.gallery .actions button{
+  font-size:12px;padding:6px 8px;border-radius:8px;
+  border:1px solid #333;background:#222;color:#eee;cursor:pointer;text-decoration:none
+}
+ul.gallery .actions a:hover, ul.gallery .actions button:hover{background:#2c2c2c}

@@ -3,22 +3,53 @@
 {% block body %}
 <h2>Gallery</h2>
 <p><a href="{{ url_for('ui.index') }}">← Back</a></p>
-<ul class="gallery">
-  {% if items %}
-    {% for f in items %}
-      {% set url = url_for('ui.captures', fname=f) %}
-      <li>
-        {% if f.lower().endswith('.jpg') %}
-          <a href="{{ url }}"><img src="{{ url }}" alt="{{ f }}"></a><br>{{ f }}
-        {% elif f.lower().endswith('.json') %}
-          <a href="{{ url }}">{{ f }}</a>
-        {% else %}
-          <video src="{{ url }}" controls></video><br>{{ f }}
-        {% endif %}
-      </li>
-    {% endfor %}
-  {% else %}
-    <p>No captures yet.</p>
-  {% endif %}
-</ul>
+
+{% if not groups %}
+  <p>No captures yet.</p>
+{% else %}
+  {% for date, items in groups %}
+    <h3 style="text-align:left">{{ date }}</h3>
+    <ul class="gallery">
+      {% for it in items %}
+        <li id="item-{{ it.name|e }}">
+          {% if it.ext == '.jpg' %}
+            <a href="{{ it.url }}"><img src="{{ it.url }}" alt="{{ it.name }}"></a>
+          {% elif it.ext in ['.mp4', '.avi'] %}
+            <video src="{{ it.url }}" controls></video>
+          {% else %}
+            <a href="{{ it.url }}">{{ it.name }}</a>
+          {% endif %}
+          <div class="meta">
+            <div class="fn">{{ it.name }}</div>
+            <div class="sub">{{ it.time }} • {{ (it.size/1024)|round(1) }} KB</div>
+            <div class="actions">
+              <a href="{{ it.url }}" download>Download</a>
+              {% if it.ext in ['.mp4', '.jpg', '.avi'] %}
+                <button onclick="delItem('{{ it.name|e }}')">Delete</button>
+              {% endif %}
+            </div>
+          </div>
+        </li>
+      {% endfor %}
+    </ul>
+  {% endfor %}
+{% endif %}
+
+<script>
+async function delItem(name){
+  if(!confirm(`Delete ${name}? This cannot be undone.`)) return;
+  const r = await fetch('/api/delete', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({name})
+  });
+  const j = await r.json();
+  if(j.ok){
+    const el = document.getElementById('item-'+name);
+    if(el) el.remove();
+  }else{
+    alert('Delete failed: ' + (j.error || 'unknown'));
+  }
+}
+</script>
 {% endblock %}
