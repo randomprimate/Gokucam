@@ -54,14 +54,15 @@ def snapshot():
     write_meta(path, "snapshot", servos.state["pan"], servos.state["tilt"])
     return jsonify({"saved": str(path)})
 
+
 @bp.post("/record")
 def record():
+    """Record a short clip (default 10 s)."""
     cam, servos, snap_dir = _svc()
     secs = int(request.args.get("secs", 10))
-    mode = request.args.get("mode", "archival")
-    name = f"{timestamp()}_{mode}.mp4"
+    name = f"{timestamp()}_recording.mp4"
     path = Path(snap_dir) / name
-    cam.record_clip(mode, secs, path)
-    write_meta(path, "recording", servos.state["pan"], servos.state["tilt"],
-               {"mode": mode, "secs": secs})
+    cam.record_clip(secs, path)
+    # Sidecar metadata
+    write_meta(path, "recording", servos.state["pan"], servos.state["tilt"], {"secs": secs})
     return jsonify({"saved": str(path)})

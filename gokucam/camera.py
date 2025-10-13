@@ -1,4 +1,3 @@
-# gokucam/camera.py
 import time, subprocess, io
 from pathlib import Path
 from threading import Lock, Condition
@@ -6,6 +5,10 @@ from threading import Lock, Condition
 from picamera2 import Picamera2
 from picamera2.encoders import MJPEGEncoder, JpegEncoder
 from picamera2.outputs import FileOutput
+# add to imports at the top
+from picamera2.encoders import H264Encoder
+from picamera2.outputs import FfmpegOutput
+
 
 class _Buffer(io.BufferedIOBase):
     def __init__(self):
@@ -126,40 +129,18 @@ class Camera:
             self.buffer.cv.wait(timeout=1.0)
             return self.buffer.frame
 
-    # ---------- recording (fully release → record → recreate) ----------
-    def record_clip(self, mode: str, secs: int, out_path: Path):
-        """
-        Fully close Picamera2 so rpicam-vid can acquire the sensor, then recreate.
-        """
-        presets = dict(social=self.cfg["SOCIAL"], archival=self.cfg["ARCHIVAL"])
-        preset = presets.get(mode, self.cfg["ARCHIVAL"])
-        w, h = preset["size"]; fps = preset["fps"]
-        br = preset["bitrate"]; rot = preset["rotation"]
+    # ---------- recording ----------
+    def record_clip(self, secs: int, out_path: Path):
+        """Record H.264 → MP4 in-process, without stopping MJPEG."""
+        bitrate = int(self.cfg.get("BITRATE", 8_000_000))
+        fps = int(self.cfg.get("FPS", 25))
 
-        cmd = ["rpicam-vid", "--nopreview",
-               "--width", str(w), "--height", str(h),
-               "--framerate", str(fps), "--bitrate", str(br),
-               "-t", str(secs * 1000), "-o", str(out_path)]
-        if rot:
-            cmd[1:1] = ["--rotation", str(rot)]
+        encoder = H264Encoder(bitrate=bitrate)
+        output = FfmpegOutput(str(out_path), framerate=fps)
 
-        with self.lock:
-            self.stop_stream()
-            self._close_picam()
-            time.sleep(0.6)  # give kernel/userspace a moment to drop handles
+        self.picam.start_encoder(encoder, output)
+        try:
+            time.sleep(secs)
+        finally:
+            self.picam.stop_encoder(encoder)
 
-            try:
-                print(f"[+] rpicam-vid start ({mode}) → {out_path}")
-                res = subprocess.run(
-                    cmd, check=True, text=True,
-                    stdout=subprocess.PIPE, stderr=subprocess.PIPE
-                )
-                if res.stderr:
-                    print("[rpicam-vid stderr]", res.stderr.strip())
-            finally:            
-                try:
-                    self._create_picam()
-                    self.start_stream()
-                    print("[+] MJPEG stream resumed")
-                except Exception as e:
-                    print(f"[!] Failed to resume stream: {e}")

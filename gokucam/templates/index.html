@@ -19,8 +19,7 @@
 
   <button class="wide" onclick="sweep()">Sweep demo</button>
   <button class="wide" onclick="snapshot()">📸 Snapshot</button>
-  <button class="wide" onclick="record('social')">🎥 Record 10 s (Social)</button>
-  <button class="wide" onclick="record('archival')">🎥 Record 10 s (Archival)</button>
+  <button class="wide" onclick="record()">🎥 Record 10 s</button>
 </div>
 
 <div class="row">
@@ -62,9 +61,10 @@ async function snapshot(){
   const r = await fetch('/api/snapshot', {method:'POST'});
   const j = await r.json(); alert(j.saved ? `Saved:\n${j.saved}` : 'Snapshot failed.');
 }
-async function record(mode='archival'){
-  const r = await fetch(`/api/record?secs=10&mode=${mode}`, {method:'POST'});
-  const j = await r.json(); alert(j.saved ? `Saved:\n${j.saved}` : 'Recording failed.');
+async function record() {
+  const r = await fetch('/api/record?secs=10', {method:'POST'});
+  const j = await r.json();
+  alert(j.saved ? `Saved clip:\n${j.saved}` : 'Recording failed.');
 }
 </script>
 {% endblock %}

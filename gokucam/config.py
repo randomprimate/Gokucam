@@ -19,5 +19,5 @@ class Config:
     JPEG_Q   = 85
 
     # Recording presets
-    SOCIAL   = dict(size=(1080, 1920), fps=30, bitrate=8_000_000, rotation=90)
-    ARCHIVAL = dict(size=(1920, 1080), fps=25, bitrate=10_000_000, rotation=0)
+    BITRATE = 8_000_000
+    FPS = 25
