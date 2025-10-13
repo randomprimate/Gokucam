@@ -63,6 +63,36 @@ def record():
     name = f"{timestamp()}_recording.mp4"
     path = Path(snap_dir) / name
     cam.record_clip(secs, path)
-    # Sidecar metadata
     write_meta(path, "recording", servos.state["pan"], servos.state["tilt"], {"secs": secs})
     return jsonify({"saved": str(path)})
+
+@bp.post("/delete")
+def delete():
+    """
+    Delete a capture file (and its .json sidecar if present).
+    Body: {"name": "20251012_103334_recording.mp4"}
+    """
+    snap_dir = _svc()
+    data = request.get_json(silent=True) or {}
+    name = str(data.get("name", "")).strip()
+
+    if not name or "/" in name or "\\" in name:
+        return jsonify({"error": "invalid_name"}), 400
+
+    target = Path(snap_dir) / name
+    if not target.exists():
+        return jsonify({"error": "not_found"}), 404
+
+    try:
+        target.unlink()
+    except Exception as e:
+        return jsonify({"error": "unlink_failed", "detail": str(e)}), 500
+
+    sidecar = Path(str(target) + ".json")
+    if sidecar.exists():
+        try:
+            sidecar.unlink()
+        except Exception:
+            pass
+
+    return jsonify({"ok": True, "deleted": name})

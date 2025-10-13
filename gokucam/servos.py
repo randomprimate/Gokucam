@@ -12,20 +12,35 @@ class Servos:
         self.pan  = Servo(cfg["PAN_PORT"])
         self.tilt = Servo(cfg["TILT_PORT"])
         self.state = {"pan": 0.0, "tilt": 0.0}
-        self.set_pan(0); self.set_tilt(0); time.sleep(0.2)
+        self.last_error = None
+
+        # center on start
+        self._safe_angle(self.pan,  0.0, key="pan")
+        self._safe_angle(self.tilt, 0.0, key="tilt")
+        time.sleep(0.2)
 
         keep = cfg["SERVO_KEEPALIVE_SEC"]
         if keep > 0:
-            t = threading.Thread(target=self._keepalive, args=(keep,), daemon=True)
-            t.start()
+            threading.Thread(target=self._keepalive, args=(keep,), daemon=True).start()
+
+    def _safe_angle(self, servo, val, key):
+        try:
+            servo.angle(val)
+            self.state[key] = val
+            self.last_error = None
+            return val
+        except Exception as e:
+            self.last_error = f"{key}: {e}"
+            print(f"[SERVOS] Error setting {key}={val}: {e}")
+            return self.state[key]
 
     def set_pan(self, angle: float) -> float:
         a = clamp(angle, self.cfg["PAN_MIN"], self.cfg["PAN_MAX"])
-        self.pan.angle(a); self.state["pan"] = a; return a
+        return self._safe_angle(self.pan, a, "pan")
 
     def set_tilt(self, angle: float) -> float:
         a = clamp(angle, self.cfg["TILT_MIN"], self.cfg["TILT_MAX"])
-        self.tilt.angle(a); self.state["tilt"] = a; return a
+        return self._safe_angle(self.tilt, a, "tilt")
 
     def center(self):
         self.set_pan(0); self.set_tilt(0)
@@ -33,5 +48,5 @@ class Servos:
     def _keepalive(self, period: int):
         while True:
             time.sleep(period)
-            self.pan.angle(self.state["pan"])
-            self.tilt.angle(self.state["tilt"])
+            self._safe_angle(self.pan,  self.state["pan"],  "pan")
+            self._safe_angle(self.tilt, self.state["tilt"], "tilt")
