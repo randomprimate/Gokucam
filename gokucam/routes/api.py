@@ -66,28 +66,44 @@ def record():
     write_meta(path, "recording", servos.state["pan"], servos.state["tilt"], {"secs": secs})
     return jsonify({"saved": str(path)})
 
+def _snapdir() -> Path:
+    """Return SNAP_DIR as a Path, even if config provided a tuple/list/str."""
+    sd = current_app.config.get("SNAP_DIR")
+    # handle weird cases (tuple/list from env or config loaders)
+    if isinstance(sd, (list, tuple)):
+        sd = sd[0] if sd else ""
+    return Path(str(sd)) 
+
 @bp.post("/delete")
 def delete():
     """
     Delete a capture file (and its .json sidecar if present).
-    Body: {"name": "20251012_103334_recording.mp4"}
+    Body JSON: {"name": "20251013_105643_recording.mp4"}
     """
-    snap_dir = _svc()
     data = request.get_json(silent=True) or {}
     name = str(data.get("name", "")).strip()
 
+    # Safety: base name only (no dirs), simple characters
     if not name or "/" in name or "\\" in name:
         return jsonify({"error": "invalid_name"}), 400
 
-    target = Path(snap_dir) / name
+    snap_dir = _snapdir()
+    target = snap_dir / name
+
+    # Extra guard: ensure the resolved parent is exactly SNAP_DIR
+    try:
+        if target.resolve().parent != snap_dir.resolve():
+            return jsonify({"error": "invalid_path"}), 400
+    except FileNotFoundError:
+        # resolve() can throw if parent doesn’t exist yet; fall back to exists check
+        pass
+
     if not target.exists():
         return jsonify({"error": "not_found"}), 404
-
     try:
         target.unlink()
     except Exception as e:
         return jsonify({"error": "unlink_failed", "detail": str(e)}), 500
-
     sidecar = Path(str(target) + ".json")
     if sidecar.exists():
         try:
