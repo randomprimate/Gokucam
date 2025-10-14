@@ -12,7 +12,7 @@ class Config:
     PAN_MIN, PAN_MAX   = -90, 90
     TILT_MIN, TILT_MAX = -60, 60
     STEP_DEG = 10
-    SERVO_KEEPALIVE_SEC = int(os.getenv("GOKU_KEEPALIVE", "3"))  # 0 to disable
+    SERVO_KEEPALIVE_SEC = int(os.getenv("GOKU_KEEPALIVE", "0"))  # 0 to disable
 
     # Camera
     CAM_SIZE = (1280, 720)  # (960,540) for RPi 3 if needed

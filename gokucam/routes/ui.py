@@ -5,7 +5,6 @@ bp = Blueprint("ui", __name__)
 
 def _scan_items(snap_dir):
     items = []
-    # First pass: collect all files
     all_files = {}
     for f in os.listdir(snap_dir):
         if not f.lower().endswith((".jpg", ".mp4", ".avi", ".json")):
@@ -26,12 +25,9 @@ def _scan_items(snap_dir):
             "time": mtime.strftime("%H:%M:%S"),
         }
     
-    # Second pass: check for sidecar files and add to items
     for f, item in all_files.items():
         if item["ext"] == ".json":
-            continue  # Skip JSON files themselves
-        
-        # Check if there's a corresponding JSON sidecar file
+            continue 
         base_name = os.path.splitext(f)[0]
         json_file = base_name + ".json"
         has_sidecar = json_file in all_files
@@ -61,18 +57,6 @@ def stream():
     return Response(cam.mjpeg_frames(),
                     headers=headers,
                     mimetype="multipart/x-mixed-replace; boundary=frame")
-
-@bp.get("/debug.jpg")
-def debug_jpg():
-    cam = current_app.extensions["gokucam.camera"]
-    frame = cam.snapshot_bytes()
-    if not frame:
-        return "no frame", 503
-    from flask import make_response
-    resp = make_response(frame)
-    resp.headers["Content-Type"] = "image/jpeg"
-    resp.headers["Cache-Control"] = "no-cache"
-    return resp
 
 @bp.get("/gallery")
 def gallery():
