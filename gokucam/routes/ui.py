@@ -5,6 +5,8 @@ bp = Blueprint("ui", __name__)
 
 def _scan_items(snap_dir):
     items = []
+    # First pass: collect all files
+    all_files = {}
     for f in os.listdir(snap_dir):
         if not f.lower().endswith((".jpg", ".mp4", ".avi", ".json")):
             continue
@@ -14,7 +16,7 @@ def _scan_items(snap_dir):
         except FileNotFoundError:
             continue
         mtime = datetime.datetime.fromtimestamp(st.st_mtime)
-        items.append({
+        all_files[f] = {
             "name": f,
             "url": f"/captures/{f}",
             "ext": os.path.splitext(f)[1].lower(),
@@ -22,7 +24,21 @@ def _scan_items(snap_dir):
             "mtime": mtime,
             "date": mtime.strftime("%Y-%m-%d"),
             "time": mtime.strftime("%H:%M:%S"),
-        })
+        }
+    
+    # Second pass: check for sidecar files and add to items
+    for f, item in all_files.items():
+        if item["ext"] == ".json":
+            continue  # Skip JSON files themselves
+        
+        # Check if there's a corresponding JSON sidecar file
+        base_name = os.path.splitext(f)[0]
+        json_file = base_name + ".json"
+        has_sidecar = json_file in all_files
+        
+        item["has_sidecar"] = has_sidecar
+        items.append(item)
+    
     items.sort(key=lambda x: x["mtime"], reverse=True)
     grouped = {}
     for it in items:

@@ -19,6 +19,9 @@
           {% else %}
             <a href="{{ it.url }}">{{ it.name }}</a>
           {% endif %}
+          {% if it.has_sidecar %}
+            <div class="sidecar-indicator" title="Has associated JSON data">J</div>
+          {% endif %}
           <div class="meta">
             <div class="fn">{{ it.name }}</div>
             <div class="sub">{{ it.time }} • {{ (it.size/1024)|round(1) }} KB</div>
