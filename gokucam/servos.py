@@ -27,6 +27,7 @@ class Servos:
         try:
             self.state[key] = val  # Update state BEFORE calling servo
             servo.angle(val)
+            time.sleep(0.05)  # Small delay to reduce electrical interference
             self.last_error = None
             return val
         except Exception as e:

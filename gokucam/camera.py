@@ -129,17 +129,38 @@ class Camera:
         if not self.streaming:
             self.picam.configure(self.video_cfg)
             self.start_stream()
+    
+    def restart_stream(self):
+        """Force restart the camera stream - useful for recovery"""
+        print("[CAMERA] Restarting stream...")
+        self.stop_stream()
+        time.sleep(0.2)
+        self._create_picam()
+        self.start_stream()
 
     # ---------- producers ----------
     def mjpeg_frames(self):
         self.ensure_streaming()
         boundary = b'--frame'
+        consecutive_none_frames = 0
+        max_none_frames = 10
+        
         while True:
             with self.buffer.cv:
-                self.buffer.cv.wait()
+                self.buffer.cv.wait(timeout=2.0)  # Add timeout
                 frame = self.buffer.frame
+            
             if frame is None:
+                consecutive_none_frames += 1
+                if consecutive_none_frames >= max_none_frames:
+                    print("[CAMERA] Too many None frames, restarting stream...")
+                    self.stop_stream()
+                    time.sleep(0.1)
+                    self.start_stream()
+                    consecutive_none_frames = 0
                 continue
+            
+            consecutive_none_frames = 0
             yield (boundary + b'\r\nContent-Type: image/jpeg\r\nContent-Length: ' +
                    str(len(frame)).encode() + b'\r\n\r\n' + frame + b'\r\n')
 

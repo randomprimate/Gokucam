@@ -32,6 +32,13 @@ def center():
     servos.center()
     return jsonify(servos.state)
 
+@bp.post("/restart_stream")
+def restart_stream():
+    """Restart the camera stream if it's frozen"""
+    cam, _, _ = _svc()
+    cam.restart_stream()
+    return jsonify({"status": "stream_restarted"})
+
 @bp.post("/sweep")
 def sweep():
     import time
