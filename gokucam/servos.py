@@ -26,8 +26,8 @@ class Servos:
     def _safe_angle(self, servo, val, key):
         try:
             self.state[key] = val  # Update state BEFORE calling servo
-            servo.angle(val)
-            time.sleep(0.05)  # Small delay to reduce electrical interference
+            # Make servo movement non-blocking by running in a separate thread
+            threading.Thread(target=lambda: servo.angle(val), daemon=True).start()
             self.last_error = None
             return val
         except Exception as e:

@@ -25,8 +25,6 @@ class Camera:
         self.buffer = _Buffer()
         self.lock = Lock()
         self.streaming = False
-        self.last_frame_time = time.time()
-        self.frame_count = 0
 
         # create & configure the camera object
         self._create_picam()
@@ -170,46 +168,14 @@ class Camera:
     def mjpeg_frames(self):
         self.ensure_streaming()
         boundary = b'--frame'
-        consecutive_none_frames = 0
-        max_none_frames = 30  # Much higher threshold - only restart if truly broken
-        consecutive_timeouts = 0
-        max_timeouts = 10  # Much higher threshold
-        
         while True:
-            try:
-                with self.buffer.cv:
-                    # Longer timeout to avoid false positives
-                    if not self.buffer.cv.wait(timeout=3.0):
-                        consecutive_timeouts += 1
-                        if consecutive_timeouts >= max_timeouts:
-                            print("[CAMERA] Stream appears completely frozen, restarting...")
-                            self._restart_stream_safe()
-                            consecutive_timeouts = 0
-                        continue
-                    frame = self.buffer.frame
-                
-                if frame is None:
-                    consecutive_none_frames += 1
-                    if consecutive_none_frames >= max_none_frames:
-                        print("[CAMERA] Stream producing no frames, restarting...")
-                        self._restart_stream_safe()
-                        consecutive_none_frames = 0
-                    continue
-                
-                # Reset counters on successful frame
-                consecutive_none_frames = 0
-                consecutive_timeouts = 0
-                self.last_frame_time = time.time()
-                self.frame_count += 1
-                
-                yield (boundary + b'\r\nContent-Type: image/jpeg\r\nContent-Length: ' +
-                       str(len(frame)).encode() + b'\r\n\r\n' + frame + b'\r\n')
-                       
-            except Exception as e:
-                print(f"[CAMERA] Critical error in stream loop: {e}")
-                # Only restart on critical errors, not minor hiccups
-                self._restart_stream_safe()
-                time.sleep(0.5)
+            with self.buffer.cv:
+                self.buffer.cv.wait()
+                frame = self.buffer.frame
+            if frame is None:
+                continue
+            yield (boundary + b'\r\nContent-Type: image/jpeg\r\nContent-Length: ' +
+                   str(len(frame)).encode() + b'\r\n\r\n' + frame + b'\r\n')
 
     def snapshot_bytes(self) -> bytes | None:
         self.ensure_streaming()
