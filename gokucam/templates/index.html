@@ -68,9 +68,17 @@ async function record() {
   alert(j.saved ? `Saved clip:\n${j.saved}` : 'Recording failed.');
 }
 async function restartStream() {
-  const r = await fetch('/api/restart_stream', {method:'POST'});
-  const j = await r.json();
-  alert('Stream restarted. Please refresh the page if the video is still frozen.');
+  try {
+    const r = await fetch('/api/restart_stream', {method:'POST'});
+    const j = await r.json();
+    if (j.error) {
+      alert(`Stream restart failed: ${j.detail || j.error}`);
+    } else {
+      alert('Stream restarted. Please refresh the page if the video is still frozen.');
+    }
+  } catch (e) {
+    alert('Failed to restart stream. Please refresh the page.');
+  }
 }
 </script>
 {% endblock %}

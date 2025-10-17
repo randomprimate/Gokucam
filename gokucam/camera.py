@@ -25,6 +25,8 @@ class Camera:
         self.buffer = _Buffer()
         self.lock = Lock()
         self.streaming = False
+        self.last_frame_time = time.time()
+        self.frame_count = 0
 
         # create & configure the camera object
         self._create_picam()
@@ -64,17 +66,20 @@ class Camera:
     def _close_picam(self):
         """Close Picamera2 completely to release the /dev/video node."""
         try:
-            # stop recording if needed
-            try:
-                self.picam.stop_recording()
-            except Exception:
-                pass
-            try:
-                self.picam.stop()
-            except Exception:
-                pass
-            # fully close the device
-            self.picam.close()
+            if hasattr(self, 'picam') and self.picam is not None:
+                # stop recording if needed
+                try:
+                    self.picam.stop_recording()
+                except Exception:
+                    pass
+                try:
+                    self.picam.stop()
+                except Exception:
+                    pass
+                # fully close the device
+                self.picam.close()
+                self.picam = None
+                self.streaming = False
         except Exception as e:
             print(f"[!] picam.close warn: {e}")
 
@@ -134,35 +139,83 @@ class Camera:
         """Force restart the camera stream - useful for recovery"""
         print("[CAMERA] Restarting stream...")
         self.stop_stream()
-        time.sleep(0.2)
+        self._close_picam()  # Properly close the camera device
+        time.sleep(0.5)  # Give more time for device to be released
         self._create_picam()
         self.start_stream()
+    
+    def _restart_stream_safe(self):
+        """Safely restart stream with error handling for automatic recovery"""
+        try:
+            self.stop_stream()
+            self._close_picam()
+            time.sleep(0.5)
+            self._create_picam()
+            self.start_stream()
+            print("[CAMERA] Stream restarted successfully")
+        except Exception as e:
+            print(f"[CAMERA] Stream restart failed: {e}")
+            # Try a more aggressive restart
+            try:
+                time.sleep(1.0)
+                self._create_picam()
+                self.start_stream()
+                print("[CAMERA] Stream restarted on second attempt")
+            except Exception as e2:
+                print(f"[CAMERA] Second restart attempt failed: {e2}")
+                # Last resort: just try to ensure streaming
+                self.ensure_streaming()
 
     # ---------- producers ----------
     def mjpeg_frames(self):
         self.ensure_streaming()
         boundary = b'--frame'
         consecutive_none_frames = 0
-        max_none_frames = 10
+        max_none_frames = 5  # Reduced threshold for faster recovery
+        consecutive_timeouts = 0
+        max_timeouts = 3
         
         while True:
-            with self.buffer.cv:
-                self.buffer.cv.wait(timeout=2.0)  # Add timeout
-                frame = self.buffer.frame
-            
-            if frame is None:
-                consecutive_none_frames += 1
-                if consecutive_none_frames >= max_none_frames:
-                    print("[CAMERA] Too many None frames, restarting stream...")
-                    self.stop_stream()
-                    time.sleep(0.1)
-                    self.start_stream()
-                    consecutive_none_frames = 0
-                continue
-            
-            consecutive_none_frames = 0
-            yield (boundary + b'\r\nContent-Type: image/jpeg\r\nContent-Length: ' +
-                   str(len(frame)).encode() + b'\r\n\r\n' + frame + b'\r\n')
+            try:
+                with self.buffer.cv:
+                    # Shorter timeout to detect issues faster
+                    if not self.buffer.cv.wait(timeout=1.0):
+                        consecutive_timeouts += 1
+                        if consecutive_timeouts >= max_timeouts:
+                            print("[CAMERA] Too many timeouts, restarting stream...")
+                            self._restart_stream_safe()
+                            consecutive_timeouts = 0
+                        continue
+                    frame = self.buffer.frame
+                
+                if frame is None:
+                    consecutive_none_frames += 1
+                    if consecutive_none_frames >= max_none_frames:
+                        print("[CAMERA] Too many None frames, restarting stream...")
+                        self._restart_stream_safe()
+                        consecutive_none_frames = 0
+                    continue
+                
+                # Reset counters on successful frame
+                consecutive_none_frames = 0
+                consecutive_timeouts = 0
+                self.last_frame_time = time.time()
+                self.frame_count += 1
+                
+                # Check if frames are coming too slowly (indicating servo interference)
+                if self.frame_count % 50 == 0:  # Check every 50 frames
+                    time_since_last = time.time() - self.last_frame_time
+                    if time_since_last > 3.0:  # More than 3 seconds between frames
+                        print("[CAMERA] Frame rate too slow, restarting stream...")
+                        self._restart_stream_safe()
+                
+                yield (boundary + b'\r\nContent-Type: image/jpeg\r\nContent-Length: ' +
+                       str(len(frame)).encode() + b'\r\n\r\n' + frame + b'\r\n')
+                       
+            except Exception as e:
+                print(f"[CAMERA] Error in stream loop: {e}")
+                self._restart_stream_safe()
+                time.sleep(0.1)
 
     def snapshot_bytes(self) -> bytes | None:
         self.ensure_streaming()
