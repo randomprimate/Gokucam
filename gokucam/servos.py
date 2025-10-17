@@ -20,26 +20,14 @@ class Servos:
         time.sleep(0.2)
 
         keep = cfg["SERVO_KEEPALIVE_SEC"]
-        print(f"[SERVOS] Keepalive period: {keep}s")
         if keep > 0:
             threading.Thread(target=self._keepalive, args=(keep,), daemon=True).start()
-        else:
-            print("[SERVOS] Keepalive disabled")
 
     def _safe_angle(self, servo, val, key):
-        import traceback
-        print("-------------------------")
-        print("servo: ", servo)
-        print("val: ", val)
-        print("key: ", key)
-        print("current state:", self.state)
-        print("Call stack:")
-        traceback.print_stack()
         try:
             self.state[key] = val  # Update state BEFORE calling servo
             servo.angle(val)
             self.last_error = None
-            print(f"[SERVOS] Successfully set {key}={val}")
             return val
         except Exception as e:
             self.last_error = f"{key}: {e}"
@@ -58,9 +46,7 @@ class Servos:
         self.set_pan(0); self.set_tilt(0)
 
     def _keepalive(self, period: int):
-        print(f"[KEEPALIVE] Starting keepalive thread with {period}s period")
         while True:
             time.sleep(period)
-            print(f"[KEEPALIVE] Running keepalive - current state: {self.state}")
             self._safe_angle(self.pan,  self.state["pan"],  "pan")
             self._safe_angle(self.tilt, self.state["tilt"], "tilt")

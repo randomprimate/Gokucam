@@ -24,10 +24,7 @@ def create_app(config_object: type[Config] = Config) -> Flask:
 
     @app.teardown_appcontext
     def _shutdown(_exc=None):
-        try:
-            servos.center()
-        except Exception:
-            pass
+        # Only stop camera stream, don't center servos on every request
         try:
             camera.stop_stream()
         except Exception:
