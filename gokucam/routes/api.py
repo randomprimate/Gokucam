@@ -32,17 +32,6 @@ def center():
     servos.center()
     return jsonify(servos.state)
 
-@bp.post("/restart_stream")
-def restart_stream():
-    """Restart the camera stream if it's frozen"""
-    try:
-        cam, _, _ = _svc()
-        cam.restart_stream()
-        return jsonify({"status": "stream_restarted"})
-    except Exception as e:
-        print(f"[API] Stream restart failed: {e}")
-        return jsonify({"error": "stream_restart_failed", "detail": str(e)}), 500
-
 @bp.post("/sweep")
 def sweep():
     import time
