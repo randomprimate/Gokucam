@@ -97,9 +97,9 @@ class Camera:
                 print("[MOCK] picamera2 not available, using mock camera")
                 self.picam = MockPicamera2()
                 self.buffer = StreamingBuffer()
-            except RuntimeError as e:
-                if "Device or resource busy" in str(e) or "Pipeline handler in use" in str(e):
-                    print(f"[MOCK] Camera busy ({e}), using mock camera")
+            except Exception as e:
+                if any(msg in str(e) for msg in ["Device or resource busy", "Pipeline handler in use", "Camera __init__ sequence did not complete"]):
+                    print(f"[MOCK] Camera unavailable ({e}), using mock camera")
                     self.picam = MockPicamera2()
                     self.buffer = StreamingBuffer()
                 else:
