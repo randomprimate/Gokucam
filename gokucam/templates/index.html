@@ -41,7 +41,9 @@
   </div>
 
 <script>
-let STEP = Number({ step });
+const STEP = parseFloat('{{ step|default(8) }}') || 8;
+console.log('STEP: ', STEP);
+
 function updateState(s) {
   if ('pan' in s)  document.getElementById('pan').innerText  = s.pan;
   if ('tilt' in s) document.getElementById('tilt').innerText = s.tilt;
