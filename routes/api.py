@@ -109,3 +109,41 @@ def api_sweep():
     for a in seq_tilt:
         set_tilt(a); time.sleep(0.25)
     return jsonify(state)
+
+@bp.route("/gallery")
+def gallery():
+    """Gallery page showing captured images and videos"""
+    import glob
+    import os
+    
+    # Get all image and video files from captures directory
+    image_files = glob.glob(os.path.join("./captures", "*.jpg"))
+    video_files = glob.glob(os.path.join("./captures", "*.mp4"))
+    
+    # Sort by modification time (newest first)
+    all_files = []
+    for file_path in image_files + video_files:
+        stat = os.stat(file_path)
+        all_files.append({
+            'path': file_path,
+            'name': os.path.basename(file_path),
+            'size': stat.st_size,
+            'modified': stat.st_mtime,
+            'type': 'image' if file_path.endswith('.jpg') else 'video'
+        })
+    
+    all_files.sort(key=lambda x: x['modified'], reverse=True)
+    
+    return render_template("gallery.html", files=all_files)
+
+@bp.route("/captures/<filename>")
+def serve_capture(filename):
+    """Serve captured image/video files"""
+    import os
+    from flask import send_from_directory
+    
+    # Security: only allow jpg and mp4 files
+    if not filename.endswith(('.jpg', '.mp4')):
+        return "File type not allowed", 403
+    
+    return send_from_directory("./captures", filename)

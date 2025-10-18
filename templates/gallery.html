@@ -1,0 +1,37 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>GokuCam Gallery</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="wrap">
+    <h2>GokuCam Gallery</h2>
+    <p><a href="/">← Back to Live View</a></p>
+    
+    {% if files %}
+      <div class="gallery">
+        {% for file in files %}
+          <div class="gallery-item">
+            {% if file.type == 'image' %}
+              <img src="/captures/{{ file.name }}" alt="{{ file.name }}" />
+            {% else %}
+              <video controls>
+                <source src="/captures/{{ file.name }}" type="video/mp4">
+                Your browser does not support the video tag.
+              </video>
+            {% endif %}
+            <div class="file-info">
+              <strong>{{ file.name }}</strong><br>
+              <small>{{ file.type|title }} • {{ "%.1f"|format(file.size / 1024) }} KB</small>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p>No captures yet. <a href="/">Go back to take some photos!</a></p>
+    {% endif %}
+  </div>
+</body>
+</html>
