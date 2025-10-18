@@ -166,28 +166,31 @@ class Camera:
 
     # ---------- producers ----------
     def mjpeg_frames(self):
+        print("[CAMERA] Starting MJPEG stream")
         self.ensure_streaming()
         boundary = b'--frame'
         frame_count = 0
         while True:
             try:
                 with self.buffer.cv:
-                    self.buffer.cv.wait(timeout=5.0)  # Add timeout to detect freezes
+                    if not self.buffer.cv.wait(timeout=5.0):  # Add timeout to detect freezes
+                        print(f"[CAMERA] Timeout waiting for frame {frame_count}")
+                        continue
                     frame = self.buffer.frame
                 if frame is None:
                     print(f"[CAMERA] No frame received (frame {frame_count})")
                     continue
                 
                 frame_count += 1
-                if frame_count % 100 == 0:  # Log every 100 frames
+                if frame_count % 50 == 0:  # Log every 50 frames for more frequent updates
                     print(f"[CAMERA] Stream healthy - {frame_count} frames sent")
                 
                 yield (boundary + b'\r\nContent-Type: image/jpeg\r\nContent-Length: ' +
                        str(len(frame)).encode() + b'\r\n\r\n' + frame + b'\r\n')
             except Exception as e:
                 print(f"[CAMERA] Error in stream: {e}")
-                # Don't restart, just continue
-                continue
+                print(f"[CAMERA] Stream ended at frame {frame_count}")
+                break  # Exit the loop on error
 
     def snapshot_bytes(self) -> bytes | None:
         self.ensure_streaming()

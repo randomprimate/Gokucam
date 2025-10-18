@@ -48,15 +48,20 @@ def index():
 
 @bp.get("/stream.mjpg")
 def stream():
+    print("[STREAM] New stream connection started")
     cam = current_app.extensions["gokucam.camera"]
     headers = {
         "Cache-Control": "no-cache, no-store, must-revalidate",
         "Pragma": "no-cache",
         "Expires": "0",
     }
-    return Response(cam.mjpeg_frames(),
-                    headers=headers,
-                    mimetype="multipart/x-mixed-replace; boundary=frame")
+    try:
+        return Response(cam.mjpeg_frames(),
+                        headers=headers,
+                        mimetype="multipart/x-mixed-replace; boundary=frame")
+    except Exception as e:
+        print(f"[STREAM] Stream connection error: {e}")
+        raise
 
 @bp.get("/gallery")
 def gallery():
