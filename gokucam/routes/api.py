@@ -15,16 +15,42 @@ def pan():
     _, servos, _ = _svc()
     step = request.args.get("step", type=float)
     to   = request.args.get("to",   type=float)
-    a = servos.set_pan(to if to is not None else servos.state["pan"] + (step or 0))
-    return jsonify({"pan": a, "tilt": servos.state["tilt"]})
+    
+    # Try direct servo control like in console
+    try:
+        from robot_hat import Servo
+        pan_servo = Servo("P0")  # Create fresh servo instance
+        new_angle = to if to is not None else servos.state["pan"] + (step or 0)
+        pan_servo.angle(new_angle)
+        servos.state["pan"] = new_angle  # Update state manually
+        print(f"[API] Direct servo control: pan={new_angle}")
+    except Exception as e:
+        print(f"[API] Direct servo failed: {e}")
+        # Fallback to original method
+        new_angle = servos.set_pan(to if to is not None else servos.state["pan"] + (step or 0))
+    
+    return jsonify({"pan": servos.state["pan"], "tilt": servos.state["tilt"]})
 
 @bp.post("/tilt")
 def tilt():
     _, servos, _ = _svc()
     step = request.args.get("step", type=float)
     to   = request.args.get("to",   type=float)
-    a = servos.set_tilt(to if to is not None else servos.state["tilt"] + (step or 0))
-    return jsonify({"pan": servos.state["pan"], "tilt": a})
+    
+    # Try direct servo control like in console
+    try:
+        from robot_hat import Servo
+        tilt_servo = Servo("P1")  # Create fresh servo instance
+        new_angle = to if to is not None else servos.state["tilt"] + (step or 0)
+        tilt_servo.angle(new_angle)
+        servos.state["tilt"] = new_angle  # Update state manually
+        print(f"[API] Direct servo control: tilt={new_angle}")
+    except Exception as e:
+        print(f"[API] Direct servo failed: {e}")
+        # Fallback to original method
+        new_angle = servos.set_tilt(to if to is not None else servos.state["tilt"] + (step or 0))
+    
+    return jsonify({"pan": servos.state["pan"], "tilt": servos.state["tilt"]})
 
 @bp.post("/center")
 def center():
