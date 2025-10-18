@@ -1,6 +1,9 @@
 import time, threading
 from .utils import clamp
 
+# Global lock to prevent servo operations from interfering with each other
+_servo_lock = threading.Lock()
+
 try:
     from robot_hat import Servo
 except Exception as e:
@@ -26,8 +29,18 @@ class Servos:
     def _safe_angle(self, servo, val, key):
         try:
             self.state[key] = val  # Update state BEFORE calling servo
-            # Make servo movement non-blocking by running in a separate thread
-            threading.Thread(target=lambda: servo.angle(val), daemon=True).start()
+            # Make servo movement non-blocking with proper synchronization
+            def move_servo():
+                print(f"[SERVOS] Starting {key} movement to {val}°")
+                with _servo_lock:
+                    try:
+                        servo.angle(val)
+                        print(f"[SERVOS] Completed {key} movement to {val}°")
+                        time.sleep(0.01)  # Small delay to prevent rapid successive calls
+                    except Exception as e:
+                        print(f"[SERVOS] Thread error setting {key}={val}: {e}")
+            
+            threading.Thread(target=move_servo, daemon=True).start()
             self.last_error = None
             return val
         except Exception as e:
