@@ -171,7 +171,7 @@ class Camera:
         boundary = b'--frame'
         frame_count = 0
         timeout_count = 0
-        max_timeouts = 1  # Restart after 3 consecutive timeouts
+        max_timeouts = 1  # Restart after 1 consecutive timeouts
         
         while True:
             try:
