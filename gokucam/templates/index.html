@@ -41,7 +41,7 @@
   </div>
 
 <script>
-let STEP = parseInt("{{ step_deg }}");
+let STEP = Number({ step });
 function updateState(s) {
   if ('pan' in s)  document.getElementById('pan').innerText  = s.pan;
   if ('tilt' in s) document.getElementById('tilt').innerText = s.tilt;
