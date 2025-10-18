@@ -18,6 +18,9 @@ class ServoController:
     def __init__(self):
         self.pan  = Servo(PAN_PORT)
         self.tilt = Servo(TILT_PORT)
+        print(f"[GokuCam][Servos] PAN_PORT={PAN_PORT}, TILT_PORT={TILT_PORT}")
+        if PAN_PORT == TILT_PORT:
+            print("[GokuCam][Servos][WARNING] PAN and TILT are using the SAME port! Set GOKU_PAN_PORT and GOKU_TILT_PORT differently.")
         self._state = {"pan": 0, "tilt": 0}
         self._lock = threading.RLock()
         # center on start
