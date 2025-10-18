@@ -36,7 +36,7 @@ class Servos:
                     try:
                         servo.angle(val)
                         print(f"[SERVOS] Completed {key} movement to {val}°")
-                        time.sleep(0.01)  # Small delay to prevent rapid successive calls
+                        time.sleep(0.1)  # Longer delay to allow camera to recover from electrical interference
                     except Exception as e:
                         print(f"[SERVOS] Thread error setting {key}={val}: {e}")
             

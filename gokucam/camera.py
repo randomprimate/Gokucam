@@ -170,13 +170,25 @@ class Camera:
         self.ensure_streaming()
         boundary = b'--frame'
         frame_count = 0
+        timeout_count = 0
+        max_timeouts = 1  # Restart after 3 consecutive timeouts
+        
         while True:
             try:
                 with self.buffer.cv:
-                    if not self.buffer.cv.wait(timeout=5.0):  # Add timeout to detect freezes
-                        print(f"[CAMERA] Timeout waiting for frame {frame_count}")
+                    if not self.buffer.cv.wait(timeout=3.0):  # Shorter timeout
+                        timeout_count += 1
+                        print(f"[CAMERA] Timeout {timeout_count} waiting for frame {frame_count}")
+                        if timeout_count >= max_timeouts:
+                            print("[CAMERA] Too many timeouts, restarting camera...")
+                            self._restart_stream_safe()
+                            timeout_count = 0
                         continue
                     frame = self.buffer.frame
+                
+                # Reset timeout counter on successful frame
+                timeout_count = 0
+                
                 if frame is None:
                     print(f"[CAMERA] No frame received (frame {frame_count})")
                     continue
