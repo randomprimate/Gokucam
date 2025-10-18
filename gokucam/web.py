@@ -5,9 +5,14 @@ from .servo_controller import servos
 
 app = Flask(__name__, template_folder="templates")
 
-@app.before_first_request
-def _start():
-    camera.start_mjpeg_stream()
+@app.before_serving
+def _start_camera():
+    """Start MJPEG stream once when the server begins serving."""
+    try:
+        camera.start_mjpeg_stream()
+        print("[GokuCam] MJPEG stream started.")
+    except Exception as e:
+        print("[GokuCam] Failed to start camera:", e)
 
 @app.route("/")
 def index():
