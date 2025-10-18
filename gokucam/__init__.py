@@ -3,10 +3,10 @@ from .config import Config
 from .camera import Camera
 from .servos import Servos
 
-camera: Camera | None = None
-servos: Servos | None = None
+camera = None
+servos = None
 
-def create_app(config_object: type[Config] = Config) -> Flask:
+def create_app(config_object=Config):
     app = Flask(__name__, static_folder="static", template_folder="templates")
     app.config.from_object(config_object)
 

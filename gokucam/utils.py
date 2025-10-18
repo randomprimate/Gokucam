@@ -7,7 +7,7 @@ def clamp(v, lo, hi): return max(lo, min(hi, v))
 def timestamp(fmt="%Y%m%d_%H%M%S") -> str:
     return datetime.now().strftime(fmt)
 
-def write_meta(path: Path, kind: str, pan: float, tilt: float, extra: dict | None = None):
+def write_meta(path: Path, kind: str, pan: float, tilt: float, extra=None):
     meta = {
         "file": str(path),
         "type": kind,

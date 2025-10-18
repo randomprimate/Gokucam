@@ -41,12 +41,12 @@ def _scan_items(snap_dir):
         grouped.setdefault(it["date"], []).append(it)
     return [(d, grouped[d]) for d in sorted(grouped.keys(), reverse=True)]
 
-@bp.get("/")
+@bp.route("/")
 def index():
     return render_template("index.html",
                            step=current_app.config["STEP_DEG"])
 
-@bp.get("/stream.mjpg")
+@bp.route("/stream.mjpg")
 def stream():
     print("[STREAM] New stream connection started")
     cam = current_app.extensions["gokucam.camera"]
@@ -63,12 +63,12 @@ def stream():
         print(f"[STREAM] Stream connection error: {e}")
         raise
 
-@bp.get("/gallery")
+@bp.route("/gallery")
 def gallery():
     snap_dir = current_app.config["SNAP_DIR"]
     groups = _scan_items(snap_dir)
     return render_template("gallery.html", groups=groups)
 
-@bp.get("/captures/<path:fname>")
+@bp.route("/captures/<path:fname>")
 def captures(fname):
     return send_from_directory(current_app.config["SNAP_DIR"], fname)

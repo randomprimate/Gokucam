@@ -1,5 +1,24 @@
 import time
-from robot_hat import Servo
+
+# Mock servo for development
+class MockServo:
+    def __init__(self, port):
+        self.port = port
+        self.angle_value = 0
+        print(f"[SERVOS] Mock servo created on {port}")
+    
+    def angle(self, value):
+        self.angle_value = value
+        print(f"[SERVOS] Mock {self.port} set to {value}°")
+
+# Try to import real servo, fall back to mock
+try:
+    from robot_hat import Servo
+    REAL_SERVOS = True
+except ImportError:
+    print("[SERVOS] Using mock servos for development")
+    Servo = MockServo
+    REAL_SERVOS = False
 
 
 class Servos:
@@ -18,6 +37,9 @@ class Servos:
         # Center servos on startup
         self.center()
         time.sleep(0.3)  # Give time for servos to settle
+        
+        if not REAL_SERVOS:
+            print("[SERVOS] Mock servos initialized")
 
     def clamp(self, val, lo, hi):
         """Clamp value between limits"""

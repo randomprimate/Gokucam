@@ -10,7 +10,7 @@ def _svc():
     snap_dir = current_app.config["SNAP_DIR"]
     return cam, srv, snap_dir
 
-@bp.post("/pan")
+@bp.route("/pan", methods=["POST"])
 def pan():
     _, servos, _ = _svc()
     step = request.args.get("step", type=float)
@@ -24,7 +24,7 @@ def pan():
     
     return jsonify({"pan": servos.state["pan"], "tilt": servos.state["tilt"]})
 
-@bp.post("/tilt")
+@bp.route("/tilt", methods=["POST"])
 def tilt():
     _, servos, _ = _svc()
     step = request.args.get("step", type=float)
@@ -38,13 +38,13 @@ def tilt():
     
     return jsonify({"pan": servos.state["pan"], "tilt": servos.state["tilt"]})
 
-@bp.post("/center")
+@bp.route("/center", methods=["POST"])
 def center():
     _, servos, _ = _svc()
     servos.center()
     return jsonify(servos.state)
 
-@bp.post("/sweep")
+@bp.route("/sweep", methods=["POST"])
 def sweep():
     import time
     _, servos, _ = _svc()
@@ -54,7 +54,7 @@ def sweep():
         servos.set_tilt(a); time.sleep(0.25)
     return jsonify(servos.state)
 
-@bp.post("/snapshot")
+@bp.route("/snapshot", methods=["POST"])
 def snapshot():
     cam, servos, snap_dir = _svc()
     frame = cam.snapshot_bytes()
@@ -67,7 +67,7 @@ def snapshot():
     return jsonify({"saved": str(path)})
 
 
-@bp.post("/record")
+@bp.route("/record", methods=["POST"])
 def record():
     """Record a short clip (default 10 s)."""
     cam, servos, snap_dir = _svc()
@@ -86,7 +86,7 @@ def _snapdir() -> Path:
         sd = sd[0] if sd else ""
     return Path(str(sd)) 
 
-@bp.post("/delete")
+@bp.route("/delete", methods=["POST"])
 def delete():
     """
     Delete a capture file (and its .json sidecar if present).
