@@ -16,18 +16,27 @@ def pan():
     step = request.args.get("step", type=float)
     to   = request.args.get("to",   type=float)
     
-    # Try direct servo control like in console
-    try:
-        from robot_hat import Servo
-        pan_servo = Servo("P0")  # Create fresh servo instance
-        new_angle = to if to is not None else servos.state["pan"] + (step or 0)
-        pan_servo.angle(new_angle)
-        servos.state["pan"] = new_angle  # Update state manually
-        print(f"[API] Direct servo control: pan={new_angle}")
-    except Exception as e:
-        print(f"[API] Direct servo failed: {e}")
-        # Fallback to original method
-        new_angle = servos.set_pan(to if to is not None else servos.state["pan"] + (step or 0))
+    # Calculate new angle
+    new_angle = to if to is not None else servos.state["pan"] + (step or 0)
+    
+    # Update state immediately for responsive UI
+    servos.state["pan"] = new_angle
+    
+    # Queue servo movement for background execution
+    import threading
+    import queue
+    
+    def move_servo_background():
+        try:
+            from robot_hat import Servo
+            pan_servo = Servo("P0")
+            pan_servo.angle(new_angle)
+            print(f"[API] Background servo movement: pan={new_angle}")
+        except Exception as e:
+            print(f"[API] Background servo failed: {e}")
+    
+    # Start background thread
+    threading.Thread(target=move_servo_background, daemon=True).start()
     
     return jsonify({"pan": servos.state["pan"], "tilt": servos.state["tilt"]})
 
@@ -37,18 +46,26 @@ def tilt():
     step = request.args.get("step", type=float)
     to   = request.args.get("to",   type=float)
     
-    # Try direct servo control like in console
-    try:
-        from robot_hat import Servo
-        tilt_servo = Servo("P1")  # Create fresh servo instance
-        new_angle = to if to is not None else servos.state["tilt"] + (step or 0)
-        tilt_servo.angle(new_angle)
-        servos.state["tilt"] = new_angle  # Update state manually
-        print(f"[API] Direct servo control: tilt={new_angle}")
-    except Exception as e:
-        print(f"[API] Direct servo failed: {e}")
-        # Fallback to original method
-        new_angle = servos.set_tilt(to if to is not None else servos.state["tilt"] + (step or 0))
+    # Calculate new angle
+    new_angle = to if to is not None else servos.state["tilt"] + (step or 0)
+    
+    # Update state immediately for responsive UI
+    servos.state["tilt"] = new_angle
+    
+    # Queue servo movement for background execution
+    import threading
+    
+    def move_servo_background():
+        try:
+            from robot_hat import Servo
+            tilt_servo = Servo("P1")
+            tilt_servo.angle(new_angle)
+            print(f"[API] Background servo movement: tilt={new_angle}")
+        except Exception as e:
+            print(f"[API] Background servo failed: {e}")
+    
+    # Start background thread
+    threading.Thread(target=move_servo_background, daemon=True).start()
     
     return jsonify({"pan": servos.state["pan"], "tilt": servos.state["tilt"]})
 
