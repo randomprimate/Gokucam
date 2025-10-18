@@ -49,6 +49,7 @@ def api_pan():
 def api_tilt():
     step = request.args.get("step", type=float)
     to   = request.args.get("to",   type=float)
+    print("api_tilt: step: ", step, "to: ", to)
     if to is not None:
         return jsonify(servos.set_tilt(to))
     if step is not None:
