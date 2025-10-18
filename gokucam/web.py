@@ -1,9 +1,18 @@
-from flask import Flask, Response, request, jsonify, render_template
-from .config import STEP_DEG
+import os
+from pathlib import Path
+from flask import Flask, Response, request, jsonify, render_template, send_from_directory, abort, url_for
+from .config import STEP_DEG, SNAP_DIR
 from .camera_manager import camera
 from .servo_controller import servos
 
-app = Flask(__name__, template_folder="templates")
+app = Flask(__name__, template_folder="templates", static_folder="static")
+
+def _safe_in_snapdir(name: str) -> Path:
+    # prevent path traversal
+    p = (SNAP_DIR / name).resolve()
+    if not str(p).startswith(str(SNAP_DIR.resolve())):
+        raise ValueError("Invalid path")
+    return p
 
 def create_app():
     # Start MJPEG stream once at app creation (Flask 2.x/3.x safe)
@@ -73,3 +82,42 @@ def api_record():
 @app.route("/health")
 def health():
     return jsonify({"ok": True, **servos.state()})
+
+@app.route("/media/<path:name>")
+def media(name):
+    # download/view a file from captures
+    try:
+        p = _safe_in_snapdir(name)
+        if not p.exists():
+            abort(404)
+        return send_from_directory(SNAP_DIR, p.name, as_attachment=False)
+    except ValueError:
+        abort(400)
+
+@app.route("/api/media/<path:name>", methods=["DELETE"])
+def api_media_delete(name):
+    try:
+        p = _safe_in_snapdir(name)
+        if p.exists():
+            p.unlink()
+            return jsonify({"deleted": name})
+        return jsonify({"error": "not found"}), 404
+    except ValueError:
+        return jsonify({"error": "bad name"}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/gallery")
+def gallery():
+    files = []
+    for f in sorted(SNAP_DIR.glob("*"), key=lambda x: x.stat().st_mtime, reverse=True):
+        kind = "video" if f.suffix.lower() in {".mp4", ".mov", ".m4v"} else "image"
+        files.append({
+            "name": f.name,
+            "url": url_for("media", name=f.name),
+            "kind": kind,
+            "ts": f.stat().st_mtime,
+            "size": f.stat().st_size,
+        })
+    return render_template("gallery.html", files=files)
+

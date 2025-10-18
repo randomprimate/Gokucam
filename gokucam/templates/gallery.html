@@ -1,0 +1,56 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>GokuCam Gallery</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="wrap">
+    <h2>Gallery</h2>
+    <div class="nav">
+      <a href="{{ url_for('index') }}">← Back to Live</a>
+    </div>
+
+    {% if not files %}
+      <p class="muted">No captures yet.</p>
+    {% else %}
+      <div class="grid">
+        {% for f in files %}
+          <div class="card">
+            {% if f.kind == 'image' %}
+              <a href="{{ f.url }}" target="_blank"><img src="{{ f.url }}" alt="{{ f.name }}"></a>
+            {% else %}
+              <video src="{{ f.url }}" controls preload="metadata"></video>
+            {% endif %}
+            <div class="card-row">
+              <span class="filename">{{ f.name }}</span>
+              <div class="btns">
+                <a class="btn" href="{{ f.url }}" download>Download</a>
+                <button class="btn danger" onclick="delFile('{{ f.name }}', this)">Delete</button>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </div>
+
+<script>
+async function delFile(name, btn){
+  if(!confirm(`Delete ${name}?`)) return;
+  btn.disabled = true;
+  const r = await fetch(`/api/media/${encodeURIComponent(name)}`, {method:'DELETE'});
+  const j = await r.json();
+  if (j.deleted){
+    // remove card
+    const card = btn.closest('.card');
+    card.parentNode.removeChild(card);
+  } else {
+    alert(j.error || 'Delete failed');
+    btn.disabled = false;
+  }
+}
+</script>
+</body>
+</html>

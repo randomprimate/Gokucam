@@ -3,23 +3,14 @@
 <head>
   <meta charset="utf-8"/>
   <title>GokuCam Live</title>
-  <style>
-    body { background:#111; color:#eee; font-family: system-ui, Arial; margin:0; }
-    .wrap { max-width: 960px; margin: 0 auto; padding: 16px; text-align:center; }
-    img { width: 100%; max-width: 960px; border-radius: 12px; background:#000; }
-    .controls { margin-top: 12px; display: grid; gap: 8px; grid-template-columns: repeat(5, minmax(0,1fr)); }
-    button { padding:10px 12px; border-radius:10px; border:1px solid #333; background:#222; color:#eee; cursor:pointer; }
-    button:hover { background:#2c2c2c; }
-    .wide { grid-column: span 5; }
-    .row { display:flex; gap:8px; justify-content:center; }
-    .pill { padding:6px 10px; border:1px solid #333; border-radius:999px; font-size:12px; color:#bbb; }
-    .stat { margin-top:8px; color:#aaa; font-size:13px; }
-    a { color:#6cf; }
-  </style>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
   <div class="wrap">
     <h2>GokuCam Live</h2>
+    <div class="nav">
+      <a href="{{ url_for('gallery') }}">📁 Gallery</a>
+    </div>
     <img src="/stream.mjpg" alt="Live stream" />
     <div class="stat">Pan: <span id="pan">0</span>° &nbsp; Tilt: <span id="tilt">0</span>°</div>
 

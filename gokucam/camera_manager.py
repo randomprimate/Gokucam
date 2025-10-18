@@ -6,7 +6,11 @@ from typing import Optional
 from picamera2 import Picamera2
 from picamera2.encoders import JpegEncoder, H264Encoder
 from picamera2.outputs import FileOutput
-from picamera2.outputs import FfmpegOutput  # wraps mp4 muxing if ffmpeg is available
+
+try:
+    from picamera2.outputs import FfmpegOutput
+except Exception:
+    FfmpegOutput = None
 
 from .config import CAM_SIZE, JPEG_Q, FPS, SNAP_DIR
 
@@ -75,33 +79,56 @@ class CameraManager:
         path.write_bytes(frame)
         return path
 
-    def record_mp4(self, seconds: int, out_dir: Path = SNAP_DIR) -> Path:
+        def record_mp4(self, seconds: int, out_dir: Path = SNAP_DIR) -> Path:
         """
-        Pause MJPEG, record H.264->MP4 for `seconds`, resume MJPEG.
-        Uses FfmpegOutput if available (installed with Picamera2 images).
+        Pause MJPEG, record H.264→MP4 for `seconds`, resume MJPEG.
+        Prefers Picamera2+FFmpeg; falls back to rpicam-vid if needed.
         """
         name = datetime.now().strftime("%Y%m%d_%H%M%S") + ".mp4"
         path = out_dir / name
         with self._lock:
-            # 1) stop MJPEG if on
             was_streaming = self._streaming
             if was_streaming:
                 self.stop_mjpeg_stream()
-                # tiny delay to let ISP settle
                 time.sleep(0.1)
 
-            # 2) record H.264 -> MP4
-            enc = H264Encoder(bitrate=8_000_000)
-            # If FfmpegOutput not present in your image, you can use FileOutput + post-mux.
-            out = FfmpegOutput(str(path), audio=False, framerate=FPS)
-            self.picam.start_recording(enc, out)
-            time.sleep(seconds)
-            self.picam.stop_recording()
+            try:
+                if FfmpegOutput is None:
+                    raise RuntimeError("FfmpegOutput not available")
 
-            # 3) resume MJPEG
-            if was_streaming:
-                self.start_mjpeg_stream()
+                enc = H264Encoder(bitrate=8_000_000)
+                # Some builds only accept the filename; some accept audio kw.
+                try:
+                    out = FfmpegOutput(str(path))
+                except TypeError:
+                    out = FfmpegOutput(str(path), audio=False)
 
+                self.picam.start_recording(enc, out)
+                time.sleep(seconds)
+                self.picam.stop_recording()
+
+            except Exception as e:
+                # Fallback to rpicam-vid CLI
+                print("[CameraManager] FFmpeg path failed, fallback to rpicam-vid:", e)
+                subprocess.run(
+                    [
+                        "rpicam-vid",
+                        "--nopreview",
+                        "--width", str(CAM_SIZE[0]),
+                        "--height", str(CAM_SIZE[1]),
+                        "--framerate", str(FPS),
+                        "-t", str(seconds * 1000),
+                        "-o", str(path),
+                    ],
+                    check=False,
+                )
+
+            finally:
+                if was_streaming:
+                    try:
+                        self.start_mjpeg_stream()
+                    except Exception as e2:
+                        print("[CameraManager] Failed to restart MJPEG:", e2)
         return path
 
 # singleton used by web app
