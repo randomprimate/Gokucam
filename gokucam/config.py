@@ -8,9 +8,9 @@ SNAP_DIR = Path(os.getenv("GOKU_SNAP_DIR", str(BASE_DIR / "captures")))
 SNAP_DIR.mkdir(parents=True, exist_ok=True)
 
 # Camera
-CAM_SIZE = tuple(map(int, os.getenv("GOKU_CAM_SIZE", "1280,720").split(",")))
-JPEG_Q   = int(os.getenv("GOKU_JPEG_Q", "85"))
-FPS      = int(os.getenv("GOKU_FPS", "25"))
+CAM_SIZE = tuple(map(int, os.getenv("GOKU_CAM_SIZE", "960,540").split(",")))
+JPEG_Q   = int(os.getenv("GOKU_JPEG_Q", "75"))
+FPS      = int(os.getenv("GOKU_FPS", "10"))
 
 # Servo ports on SunFounder HAT
 PAN_PORT  = os.getenv("GOKU_PAN_PORT", "P0")

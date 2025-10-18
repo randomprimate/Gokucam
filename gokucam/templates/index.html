@@ -65,8 +65,8 @@ async function sweep() {
   updateState(await r.json());
 }
 document.addEventListener('keydown', async (e) => {
-  if (e.key === 'ArrowLeft')  return pan(-(e.shiftKey?2:1));
-  if (e.key === 'ArrowRight') return pan( (e.shiftKey?2:1));
+  if (e.key === 'ArrowLeft')  return pan((e.shiftKey?2:1));
+  if (e.key === 'ArrowRight') return pan(-(e.shiftKey?2:1));
   if (e.key === 'ArrowUp')    return tilt(-(e.shiftKey?2:1));
   if (e.key === 'ArrowDown')  return tilt( (e.shiftKey?2:1));
   if (e.key.toLowerCase() === 'c') return center();
