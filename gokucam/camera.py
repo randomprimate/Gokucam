@@ -178,11 +178,16 @@ class Camera:
                 with self.buffer.cv:
                     if not self.buffer.cv.wait(timeout=3.0):  # Shorter timeout
                         timeout_count += 1
-                        print(f"[CAMERA] Timeout {timeout_count} waiting for frame {frame_count}")
+                        print(f"[CAMERA] Timeout {timeout_count} waiting for frame {frame_count} - possible servo interference")
                         if timeout_count >= max_timeouts:
-                            print("[CAMERA] Too many timeouts, restarting camera...")
-                            self._restart_stream_safe()
-                            timeout_count = 0
+                            print("[CAMERA] Too many timeouts, trying to recover stream...")
+                            try:
+                                self.ensure_streaming()  # Try to recover without full restart
+                                timeout_count = 0
+                            except Exception as e:
+                                print(f"[CAMERA] Recovery failed: {e}")
+                                self._restart_stream_safe()
+                                timeout_count = 0
                         continue
                     frame = self.buffer.frame
                 
