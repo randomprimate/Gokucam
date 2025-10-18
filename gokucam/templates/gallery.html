@@ -20,11 +20,17 @@
           <div class="card">
             {% if f.kind == 'image' %}
               <a href="{{ f.url }}" target="_blank"><img src="{{ f.url }}" alt="{{ f.name }}"></a>
-            {% else %}
+            {% elif f.kind == 'video' %}
               <video src="{{ f.url }}" controls preload="metadata"></video>
+            {% else %}
+              <div class="thumb icon">
+                <div class="badge">{{ 'JSON' if f.kind == 'json' else 'FILE' }}</div>
+              </div>
             {% endif %}
+          
+            <div class="filename" title="{{ f.name }}">{{ f.name }}</div>
+          
             <div class="card-row">
-              <span class="filename">{{ f.name }}</span>
               <div class="btns">
                 <a class="btn" href="{{ f.url }}" download>Download</a>
                 <button class="btn danger" onclick="delFile('{{ f.name }}', this)">Delete</button>

@@ -8,14 +8,12 @@ from .servo_controller import servos
 app = Flask(__name__, template_folder="templates", static_folder="static")
 
 def _safe_in_snapdir(name: str) -> Path:
-    # prevent path traversal
     p = (SNAP_DIR / name).resolve()
     if not str(p).startswith(str(SNAP_DIR.resolve())):
         raise ValueError("Invalid path")
     return p
 
 def create_app():
-    # Start MJPEG stream once at app creation (Flask 2.x/3.x safe)
     try:
         camera.start_mjpeg_stream()
         print("[GokuCam] MJPEG stream started.")
@@ -49,7 +47,6 @@ def api_pan():
 def api_tilt():
     step = request.args.get("step", type=float)
     to   = request.args.get("to",   type=float)
-    print("api_tilt: step: ", step, "to: ", to)
     if to is not None:
         return jsonify(servos.set_tilt(to))
     if step is not None:
@@ -110,9 +107,19 @@ def api_media_delete(name):
 
 @app.route("/gallery")
 def gallery():
+    image_exts = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+    video_exts = {".mp4", ".mov", ".m4v", ".webm"}
     files = []
     for f in sorted(SNAP_DIR.glob("*"), key=lambda x: x.stat().st_mtime, reverse=True):
-        kind = "video" if f.suffix.lower() in {".mp4", ".mov", ".m4v"} else "image"
+        ext = f.suffix.lower()
+        if ext in image_exts:
+            kind = "image"
+        elif ext in video_exts:
+            kind = "video"
+        elif ext == ".json":
+            kind = "json"
+        else:
+            kind = "file"
         files.append({
             "name": f.name,
             "url": url_for("media", name=f.name),
@@ -121,4 +128,5 @@ def gallery():
             "size": f.stat().st_size,
         })
     return render_template("gallery.html", files=files)
+
 
