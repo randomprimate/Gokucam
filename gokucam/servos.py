@@ -29,18 +29,10 @@ class Servos:
     def _safe_angle(self, servo, val, key):
         try:
             self.state[key] = val  # Update state BEFORE calling servo
-            # Make servo movement non-blocking with proper synchronization
-            def move_servo():
-                print(f"[SERVOS] Starting {key} movement to {val}°")
-                with _servo_lock:
-                    try:
-                        servo.angle(val)
-                        print(f"[SERVOS] Completed {key} movement to {val}°")
-                        time.sleep(0.5)  # Longer delay to prevent electrical interference
-                    except Exception as e:
-                        print(f"[SERVOS] Thread error setting {key}={val}: {e}")
-            
-            threading.Thread(target=move_servo, daemon=True).start()
+            print(f"[SERVOS] Starting {key} movement to {val}°")
+            with _servo_lock:
+                servo.angle(val)
+            print(f"[SERVOS] Completed {key} movement to {val}°")
             self.last_error = None
             return val
         except Exception as e:
