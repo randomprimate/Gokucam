@@ -3,7 +3,19 @@
 <head>
   <meta charset="utf-8"/>
   <title>GokuCam Live</title>
-  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    body { background:#111; color:#eee; font-family: system-ui, Arial; margin:0; }
+    .wrap { max-width: 960px; margin: 0 auto; padding: 16px; text-align:center; }
+    img { width: 100%; max-width: 960px; border-radius: 12px; background:#000; }
+    .controls { margin-top: 12px; display: grid; gap: 8px; grid-template-columns: repeat(5, minmax(0,1fr)); }
+    button { padding:10px 12px; border-radius:10px; border:1px solid #333; background:#222; color:#eee; cursor:pointer; }
+    button:hover { background:#2c2c2c; }
+    .wide { grid-column: span 5; }
+    .row { display:flex; gap:8px; justify-content:center; }
+    .pill { padding:6px 10px; border:1px solid #333; border-radius:999px; font-size:12px; color:#bbb; }
+    .stat { margin-top:8px; color:#aaa; font-size:13px; }
+    a { color:#6cf; }
+  </style>
 </head>
 <body>
   <div class="wrap">
@@ -27,7 +39,6 @@
       <button class="wide" onclick="sweep()">Sweep demo</button>
       <button class="wide" onclick="snapshot()">📸 Snapshot</button>
       <button class="wide" onclick="record()">🎥 Record 10 s</button>
-      <button class="wide" onclick="window.open('/gallery', '_blank')">🖼️ Gallery</button>
     </div>
 
     <div class="row" style="margin-top:8px;">
@@ -62,22 +73,21 @@ async function sweep() {
   updateState(await r.json());
 }
 document.addEventListener('keydown', async (e) => {
-  if (e.key === 'ArrowLeft')  return pan(- (e.shiftKey?2:1));
-  if (e.key === 'ArrowRight') return pan(  (e.shiftKey?2:1));
-  if (e.key === 'ArrowUp')    return tilt(- (e.shiftKey?2:1));
-  if (e.key === 'ArrowDown')  return tilt(  (e.shiftKey?2:1));
+  if (e.key === 'ArrowLeft')  return pan(-(e.shiftKey?2:1));
+  if (e.key === 'ArrowRight') return pan( (e.shiftKey?2:1));
+  if (e.key === 'ArrowUp')    return tilt(-(e.shiftKey?2:1));
+  if (e.key === 'ArrowDown')  return tilt( (e.shiftKey?2:1));
   if (e.key.toLowerCase() === 'c') return center();
 });
 async function snapshot() {
   const r = await fetch('/api/snapshot', {method:'POST'});
   const j = await r.json();
-  alert(j.saved ? `Saved snapshot:\n${j.saved}` : 'Snapshot failed.');
+  alert(j.saved ? `Saved snapshot:\n${j.saved}` : `Snapshot failed:\n${j.error||'unknown'}`);
 }
-
 async function record() {
   const r = await fetch('/api/record?secs=10', {method:'POST'});
   const j = await r.json();
-  alert(j.saved ? `Saved clip:\n${j.saved}` : 'Recording failed.');
+  alert(j.saved ? `Saved clip:\n${j.saved}` : `Recording failed:\n${j.error||'unknown'}`);
 }
 </script>
 </body>

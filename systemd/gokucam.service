@@ -1,0 +1,19 @@
+
+---
+
+## `systemd/gokucam.service`
+
+```ini
+[Unit]
+Description=GokuCam server
+After=network-online.target
+
+[Service]
+User=goku
+WorkingDirectory=/home/goku/gokucam
+Environment="PYTHONUNBUFFERED=1"
+ExecStart=/home/goku/gokucam/.venv/bin/python /home/goku/gokucam/run.py
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

@@ -140,3 +140,24 @@ MIT License — feel free to fork, modify, and cite the project. (Lic file avail
 --- 
 
 _Created by @randomprimate, originally to study his sulcata tortoise Goku._
+
+---
+
+### Update:
+# GokuCam (minimal, structured)
+
+## Install (Raspberry Pi OS 64-bit)
+```bash
+sudo apt update
+sudo apt install -y python3-pip python3-venv i2c-tools ffmpeg
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -U pip
+pip install -r requirements.txt
+
+# Enable I2C and Camera if not already
+sudo raspi-config nonint do_i2c 0
+sudo raspi-config nonint do_camera 0
+i2cdetect -y 1  # should show 14
+rpicam-hello -t 1000
+```
