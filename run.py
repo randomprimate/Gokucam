@@ -2,21 +2,19 @@
 from flask import Flask, render_template
 import config
 
-# Import hardware modules
-from camera import Camera
-from servos import Servos
+# Import unified hardware module
+from hardware import Hardware
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
 
 # Initialize hardware
-camera = Camera()
-servos = Servos()
+hardware = Hardware()
 
 # Import and register routes
 from routes.api import bp, init_routes
 
 # Initialize routes with dependencies
-init_routes(camera.buffer, servos.state, servos.set_pan, servos.set_tilt)
+init_routes(hardware.buffer, hardware.state, hardware.set_pan, hardware.set_tilt)
 
 # Register blueprint
 app.register_blueprint(bp)
@@ -31,10 +29,10 @@ if __name__ == "__main__":
     finally:
         # Center servos on exit
         try:
-            servos.center()
+            hardware.center()
         except Exception:
             pass
         try:
-            camera.stop_recording()
+            hardware.stop_recording()
         except Exception:
             pass
