@@ -79,13 +79,14 @@ class CameraManager:
         path.write_bytes(frame)
         return path
 
-        def record_mp4(self, seconds: int, out_dir: Path = SNAP_DIR) -> Path:
+    def record_mp4(self, seconds: int, out_dir: Path = SNAP_DIR) -> Path:
         """
         Pause MJPEG, record H.264→MP4 for `seconds`, resume MJPEG.
         Prefers Picamera2+FFmpeg; falls back to rpicam-vid if needed.
         """
         name = datetime.now().strftime("%Y%m%d_%H%M%S") + ".mp4"
         path = out_dir / name
+
         with self._lock:
             was_streaming = self._streaming
             if was_streaming:
@@ -97,6 +98,7 @@ class CameraManager:
                     raise RuntimeError("FfmpegOutput not available")
 
                 enc = H264Encoder(bitrate=8_000_000)
+
                 # Some builds only accept the filename; some accept audio kw.
                 try:
                     out = FfmpegOutput(str(path))
@@ -129,6 +131,7 @@ class CameraManager:
                         self.start_mjpeg_stream()
                     except Exception as e2:
                         print("[CameraManager] Failed to restart MJPEG:", e2)
+
         return path
 
 # singleton used by web app
