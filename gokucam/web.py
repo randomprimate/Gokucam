@@ -5,14 +5,14 @@ from .servo_controller import servos
 
 app = Flask(__name__, template_folder="templates")
 
-@app.before_serving
-def _start_camera():
-    """Start MJPEG stream once when the server begins serving."""
+def create_app():
+    # Start MJPEG stream once at app creation (Flask 2.x/3.x safe)
     try:
         camera.start_mjpeg_stream()
         print("[GokuCam] MJPEG stream started.")
     except Exception as e:
         print("[GokuCam] Failed to start camera:", e)
+    return app
 
 @app.route("/")
 def index():
@@ -20,8 +20,10 @@ def index():
 
 @app.route("/stream.mjpg")
 def stream():
-    return Response(camera.mjpeg_generator(),
-                    mimetype="multipart/x-mixed-replace; boundary=frame")
+    return Response(
+        camera.mjpeg_generator(),
+        mimetype="multipart/x-mixed-replace; boundary=frame"
+    )
 
 # --- Servo APIs ---
 @app.route("/api/pan", methods=["POST"])
@@ -71,6 +73,3 @@ def api_record():
 @app.route("/health")
 def health():
     return jsonify({"ok": True, **servos.state()})
-
-def create_app():
-    return app
