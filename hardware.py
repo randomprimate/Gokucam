@@ -100,8 +100,8 @@ class Hardware:
     
     def _init_real_hardware(self, size, quality, pan_port, tilt_port):
         """Initialize real camera and servos"""
+        # Try real camera first
         try:
-            # Real camera
             from picamera2 import Picamera2
             from picamera2.encoders import JpegEncoder
             from picamera2.outputs import FileOutput
@@ -117,16 +117,21 @@ class Hardware:
             encoder = JpegEncoder(q=quality)
             self.picam.start_recording(encoder, FileOutput(self.buffer))
             print("[REAL] Using real camera")
-            
-            # Real servos
+        except Exception as e:
+            print(f"[FALLBACK] Real camera failed ({e}), using mock camera")
+            self.picam = MockPicamera2()
+            self.buffer = StreamingBuffer()
+        
+        # Try real servos (independent of camera)
+        try:
             from robot_hat import Servo
             self.pan_servo = Servo(pan_port)
             self.tilt_servo = Servo(tilt_port)
             print("[REAL] Using real servos")
-            
         except Exception as e:
-            print(f"[FALLBACK] Real hardware failed ({e}), using mocks")
-            self._init_mock_hardware(size, quality, pan_port, tilt_port)
+            print(f"[FALLBACK] Real servos failed ({e}), using mock servos")
+            self.pan_servo = MockServo(pan_port)
+            self.tilt_servo = MockServo(tilt_port)
     
     def _init_mock_hardware(self, size, quality, pan_port, tilt_port):
         """Initialize mock camera and servos"""
