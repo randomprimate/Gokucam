@@ -2,8 +2,8 @@
 
 ## Purpose
 Turns Goku's recorded snapshots and biomarker history into a periodic
-Claude-generated health assessment and a reviewed queue of draft Instagram
-captions, ready for phase 5 to publish.
+Claude-generated health assessment and draft Instagram captions, delivered
+by email (see `email-delivery`) for a person to post by hand.
 
 ## Requirements
 
@@ -55,23 +55,26 @@ and which cadence produced it.
   draft
 
 ### Requirement: Drafts require human approval before becoming postable
-The system SHALL NOT make any draft eligible for publishing until an
-authenticated user explicitly approves it, and SHALL allow an authenticated
-user to reject a draft instead.
+The system SHALL allow an authenticated user to mark a draft `approved` or
+`rejected` for their own tracking of what has been posted, and SHALL NOT
+have any automated behavior that depends on a draft's status — drafts are
+delivered (see `email-delivery`) regardless of review status, and no
+publishing step consumes `approved` drafts.
 
 #### Scenario: Draft approved
 - **WHEN** an authenticated user approves a `pending_review` draft
-- **THEN** its status changes to `approved` and it becomes eligible for a
-  future publishing step to consume
+- **THEN** its status changes to `approved`, recorded purely for the
+  user's own reference
 
 #### Scenario: Draft rejected
 - **WHEN** an authenticated user rejects a `pending_review` draft
-- **THEN** its status changes to `rejected` and it is excluded from
-  anything eligible to publish
+- **THEN** its status changes to `rejected`, recorded purely for the
+  user's own reference
 
 #### Scenario: Unreviewed draft is never published
 - **WHEN** a draft's status is still `pending_review`
-- **THEN** nothing in the system treats it as eligible for publishing
+- **THEN** the draft was already emailed to the user when it was created
+  (per `email-delivery`); its review status does not affect that
 
 ### Requirement: AI calls degrade without disrupting the rest of the app
 The system SHALL continue operating normally if a Claude API call fails

@@ -6,6 +6,7 @@ from .config import STEP_DEG, SNAP_DIR, SECRET_KEY, SESSION_LIFETIME_MIN
 from .camera_manager import camera
 from .servo_controller import servos
 from . import auth
+from . import mailer
 from . import store
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
@@ -109,6 +110,10 @@ def api_snapshot():
 def api_record():
     secs = int(request.args.get("secs", 10))
     path = camera.record_mp4(secs)
+    try:
+        mailer.send_recording_email(str(path))
+    except Exception as e:
+        print(f"[GokuCam] email for recording failed unexpectedly: {e}")
     return jsonify({"saved": str(path)})
 
 # --- Health ---

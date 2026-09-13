@@ -160,10 +160,12 @@ Set `ANTHROPIC_API_KEY` to turn on two background jobs, visible on the new
   not a diagnosis.
 - **Caption drafting** runs on two cadences — a weekly-style roundup and a
   more frequent single-moment highlight — and writes a draft Instagram
-  caption from a recent photo. **Nothing posts automatically**: every draft
-  waits in `/insights` as `pending_review` until you click Approve or
-  Reject. Nothing publishes those approved drafts yet either — that's the
-  next phase.
+  caption from a recent photo. **Nothing posts automatically, and nothing
+  ever will automatically** — GokuCam doesn't integrate with Instagram at
+  all. Instead, every draft is emailed to you the moment it's created (see
+  below) with the photo and caption ready to paste in, for you to post by
+  hand. Approve/Reject on `/insights` is just your own "did I post this"
+  tracker — it doesn't gate anything.
 
 Health checks use a cheaper/faster model by default (they run often and
 nobody reads them unless flagged); captions use a stronger one (they run
@@ -173,6 +175,34 @@ schedule intervals — it persists across restarts, so a scheduling bug
 can't quietly turn into a surprise bill. `GOKU_AI_MOCK=1` returns a canned
 response instead of calling the real API, for testing without spending
 budget.
+
+### 📧 Email delivery
+
+Every draft caption (both cadences above) and every manual recording gets
+emailed to you as soon as it's ready — this is the whole "posting"
+mechanism for now, deliberately simpler than integrating with Instagram's
+API. Set:
+
+```bash
+export GOKU_NOTIFY_EMAIL="you@example.com"
+export GOKU_SMTP_USERNAME="your-gmail-or-workspace-address@gmail.com"
+export GOKU_SMTP_PASSWORD="an app password, not your real password"
+```
+
+An **app password** (Google Account → Security → 2-Step Verification →
+App passwords) is required — Gmail and Google Workspace both reject a
+regular account password over SMTP. Treat it as a real credential: it can
+send mail as that account, though it can't do anything else and is
+revocable independently at any time. `GOKU_SMTP_HOST`/`GOKU_SMTP_PORT`
+default to Gmail's; override for another provider. `GOKU_SMTP_FROM`
+defaults to `GOKU_SMTP_USERNAME` if unset.
+
+Scheduled/manual **photo snapshots are not individually emailed** — those
+stay browsable in `/gallery` and `/biomarkers` — only curated drafts and
+video recordings reach your inbox, to avoid an hourly flood. A failed or
+unconfigured email never blocks the draft or recording it was for; it just
+doesn't send. `GOKU_MAIL_MOCK=1` logs what would have been sent instead of
+actually sending, for testing without real SMTP credentials.
 
 ## ⚡ Performance / Tuning
 
@@ -202,6 +232,11 @@ Default values balance quality & CPU load for Raspberry Pi 3–4:
 | `GOKU_AI_HIGHLIGHT_INTERVAL_DAYS` | `3` | single-moment caption draft cadence |
 | `GOKU_AI_MAX_CALLS_PER_DAY` | `10` | hard cap across all AI calls, resets at local midnight |
 | `GOKU_AI_MAX_IMAGE_DIM` | `800` | photos are downscaled to this before upload, to control cost |
+| `GOKU_NOTIFY_EMAIL` | *(unset = email off)* | recipient for draft captions + recordings |
+| `GOKU_SMTP_USERNAME` / `GOKU_SMTP_PASSWORD` | *(required to send)* | sender account + app password |
+| `GOKU_SMTP_HOST` / `GOKU_SMTP_PORT` | `smtp.gmail.com` / `587` | override for a non-Gmail provider |
+| `GOKU_SMTP_FROM` | *(= `GOKU_SMTP_USERNAME`)* | override the From address |
+| `GOKU_MAIL_MOCK` | `0` | `1` = log the would-be email, don't send |
 
 > 💡 **Tip:** If CPU usage exceeds ~70% in Grafana, reduce `FPS` or `JPEG_Q`.  
 > On Raspberry Pi 3, settings like `CAM_SIZE=(854,480)` and `FPS=10` still give smooth viewing with much less heat.
@@ -303,12 +338,18 @@ http://<tailscale-ip>:8000
 
 ## 🧭 Roadmap
 
-- Unified Picamera2 stream + recording pipeline  
-- Motion / ML tracking  
-- WebSocket-based pan/tilt feedback  
-- Cloud or Tailscale sharing  
-- Data export for ethology / behavioral research  
-- Modular AI extensions (object detection, pet tracking, etc.)
+Shipped: a login-gated portal, scheduled snapshots + a feeding log + a
+calibrated growth-measurement tool, Claude-based health checks and caption
+drafting, and email delivery of drafts/recordings for manual posting.
+
+Still open:
+
+- Motion / ML tracking, WebSocket-based pan/tilt feedback
+- Environmental sensors (temperature/humidity) feeding into health checks
+- Alerting (email/push) when a health check flags a concern — today it's
+  visible on `/insights` only
+- Direct Instagram publishing — deliberately descoped in favor of email +
+  manual posting; revisit if that becomes real friction
 
 ---
 

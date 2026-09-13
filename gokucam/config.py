@@ -67,3 +67,12 @@ AI_ROUNDUP_INTERVAL_DAYS = float(os.getenv("GOKU_AI_ROUNDUP_INTERVAL_DAYS", "7")
 AI_HIGHLIGHT_INTERVAL_DAYS = float(os.getenv("GOKU_AI_HIGHLIGHT_INTERVAL_DAYS", "3"))
 AI_MAX_CALLS_PER_DAY = int(os.getenv("GOKU_AI_MAX_CALLS_PER_DAY", "10"))
 AI_MAX_IMAGE_DIM = int(os.getenv("GOKU_AI_MAX_IMAGE_DIM", "800"))
+
+# Email delivery (draft captions + recordings, for manual posting)
+SMTP_HOST = os.getenv("GOKU_SMTP_HOST", "smtp.gmail.com")
+SMTP_PORT = int(os.getenv("GOKU_SMTP_PORT", "587"))
+SMTP_USERNAME = os.getenv("GOKU_SMTP_USERNAME")
+SMTP_PASSWORD = os.getenv("GOKU_SMTP_PASSWORD")
+SMTP_FROM = os.getenv("GOKU_SMTP_FROM") or SMTP_USERNAME
+NOTIFY_EMAIL = os.getenv("GOKU_NOTIFY_EMAIL")
+MAIL_MOCK = os.getenv("GOKU_MAIL_MOCK", "0").lower() in ("1", "true", "yes", "on")

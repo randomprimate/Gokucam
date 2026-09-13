@@ -10,6 +10,7 @@ import time
 
 from . import ai
 from . import config
+from . import mailer
 from . import store
 
 
@@ -67,7 +68,15 @@ def _run_caption_draft(cadence: str):
     except (ai.AICallError, OSError) as e:
         print(f"[GokuCam][Insights] {cadence} draft skipped: {e}")
         return
-    store.create_draft(snap["id"], cadence=cadence, caption=caption.strip())
+    caption = caption.strip()
+    store.create_draft(snap["id"], cadence=cadence, caption=caption)
+    try:
+        mailer.send_draft_email({"cadence": cadence, "caption": caption}, image_bytes)
+    except Exception as e:
+        # mailer.send() already catches its own failures — this is belt-and-
+        # suspenders so a completely unexpected error here still can't take
+        # the draft (already saved above) down with it.
+        print(f"[GokuCam][Insights] email for {cadence} draft failed unexpectedly: {e}")
 
 
 class InsightsScheduler:
