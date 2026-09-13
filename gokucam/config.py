@@ -37,3 +37,16 @@ CAM_STALE_SEC    = int(os.getenv("GOKU_CAM_STALE_SEC", "8"))
 # Server
 HOST = os.getenv("GOKU_HOST", "0.0.0.0")
 PORT = int(os.getenv("GOKU_PORT", "8000"))
+
+# Auth (login portal)
+SECRET_KEY = os.getenv("GOKU_SECRET_KEY")
+PORTAL_USERNAME = os.getenv("GOKU_PORTAL_USERNAME", "goku")
+PORTAL_PASSWORD_HASH = os.getenv("GOKU_PORTAL_PASSWORD_HASH")
+SESSION_LIFETIME_MIN = int(os.getenv("GOKU_SESSION_LIFETIME_MIN", "720"))  # 12h
+LOGIN_MAX_ATTEMPTS = int(os.getenv("GOKU_LOGIN_MAX_ATTEMPTS", "5"))
+LOGIN_WINDOW_SEC = int(os.getenv("GOKU_LOGIN_WINDOW_SEC", "300"))  # 5 min
+
+# Dev-only fallback credentials, used solely when MOCK_HARDWARE=1 and no
+# real credentials are configured — never used outside mock mode.
+DEV_DEFAULT_USERNAME = "goku"
+DEV_DEFAULT_PASSWORD = "shellyeah"

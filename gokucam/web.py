@@ -1,11 +1,19 @@
 import os
+from datetime import timedelta
 from pathlib import Path
-from flask import Flask, Response, request, jsonify, render_template, send_from_directory, abort, url_for
-from .config import STEP_DEG, SNAP_DIR
+from flask import Flask, Response, request, jsonify, render_template, send_from_directory, abort, url_for, redirect
+from .config import STEP_DEG, SNAP_DIR, SECRET_KEY, SESSION_LIFETIME_MIN
 from .camera_manager import camera
 from .servo_controller import servos
+from . import auth
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
+app.secret_key = SECRET_KEY or "dev-only-insecure-key-mock-hardware-only"
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax",
+    PERMANENT_SESSION_LIFETIME=timedelta(minutes=SESSION_LIFETIME_MIN),
+)
 
 def _safe_in_snapdir(name: str) -> Path:
     p = (SNAP_DIR / name).resolve()
@@ -21,11 +29,30 @@ def create_app():
         print("[GokuCam] Failed to start camera:", e)
     return app
 
+@app.route("/login", methods=["GET"])
+def login_page():
+    return render_template("login.html", error=None)
+
+@app.route("/login", methods=["POST"])
+def login_submit():
+    username = request.form.get("username", "")
+    password = request.form.get("password", "")
+    if auth.login(username, password):
+        return redirect(request.args.get("next") or url_for("index"))
+    return render_template("login.html", error="Wrong username, password, or too many attempts."), 401
+
+@app.route("/logout", methods=["POST"])
+def logout():
+    auth.logout()
+    return redirect(url_for("login_page"))
+
 @app.route("/")
+@auth.login_required
 def index():
     return render_template("index.html", step=STEP_DEG)
 
 @app.route("/stream.mjpg")
+@auth.login_required
 def stream():
     return Response(
         camera.mjpeg_generator(),
@@ -34,6 +61,7 @@ def stream():
 
 # --- Servo APIs ---
 @app.route("/api/pan", methods=["POST"])
+@auth.login_required
 def api_pan():
     step = request.args.get("step", type=float)
     to   = request.args.get("to",   type=float)
@@ -44,6 +72,7 @@ def api_pan():
     return jsonify(servos.state())
 
 @app.route("/api/tilt", methods=["POST"])
+@auth.login_required
 def api_tilt():
     step = request.args.get("step", type=float)
     to   = request.args.get("to",   type=float)
@@ -54,15 +83,18 @@ def api_tilt():
     return jsonify(servos.state())
 
 @app.route("/api/center", methods=["POST"])
+@auth.login_required
 def api_center():
     return jsonify(servos.center())
 
 @app.route("/api/sweep", methods=["POST"])
+@auth.login_required
 def api_sweep():
     return jsonify(servos.sweep_demo())
 
 # --- Media APIs ---
 @app.route("/api/snapshot", methods=["POST"])
+@auth.login_required
 def api_snapshot():
     try:
         path = camera.snapshot()
@@ -71,6 +103,7 @@ def api_snapshot():
         return jsonify({"error": str(e)}), 500
 
 @app.route("/api/record", methods=["POST"])
+@auth.login_required
 def api_record():
     secs = int(request.args.get("secs", 10))
     path = camera.record_mp4(secs)
@@ -87,6 +120,7 @@ def health():
     })
 
 @app.route("/media/<path:name>")
+@auth.login_required
 def media(name):
     # download/view a file from captures
     try:
@@ -98,6 +132,7 @@ def media(name):
         abort(400)
 
 @app.route("/api/media/<path:name>", methods=["DELETE"])
+@auth.login_required
 def api_media_delete(name):
     try:
         p = _safe_in_snapdir(name)
@@ -111,6 +146,7 @@ def api_media_delete(name):
         return jsonify({"error": str(e)}), 500
 
 @app.route("/gallery")
+@auth.login_required
 def gallery():
     image_exts = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
     video_exts = {".mp4", ".mov", ".m4v", ".webm"}

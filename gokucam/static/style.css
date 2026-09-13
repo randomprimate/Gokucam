@@ -42,3 +42,12 @@ button:hover,.btn:hover{background:#2c2c2c}
         border:1px solid var(--border); background:#222; color:var(--fg);}
 .filename{margin:6px 0 8px 0; font-size:12px; color:var(--ink);
      overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+
+.login-wrap{max-width:360px; margin-top:12vh}
+.login-form{display:flex; flex-direction:column; gap:4px; margin-top:16px}
+.login-form label{font-size:12px; color:var(--muted); margin-top:8px}
+.login-form input{padding:10px 12px; border-radius:10px; border:1px solid var(--border);
+  background:var(--card); color:var(--fg); font-size:14px}
+.login-form button{margin-top:16px}
+.login-error{color:#e08a8a; font-size:13px}
+.nav{display:flex; justify-content:space-between; align-items:center; gap:8px}

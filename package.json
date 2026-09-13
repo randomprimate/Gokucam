@@ -1,0 +1,12 @@
+{
+  "name": "gokucam",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Tooling for the GokuCam project (the app itself is Python — see requirements.txt). This package.json exists only to pin OpenSpec for spec-driven development.",
+  "scripts": {
+    "openspec": "openspec"
+  },
+  "devDependencies": {
+    "@fission-ai/openspec": "^1.13.0"
+  }
+}

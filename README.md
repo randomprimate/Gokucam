@@ -60,13 +60,44 @@ source ~/venvs/gokucam/bin/activate
 pip install -r requirements.txt
 ```
 
-### 3️⃣ Run the app
+### 3️⃣ Set a portal password
+
+Every page and API is behind a login. Generate a password hash (the
+plaintext is never stored anywhere):
+
+```bash
+python scripts/set_portal_password.py
+```
+
+Export what it prints, along with a session secret key, before running for
+real:
+
+```bash
+export GOKU_SECRET_KEY=$(python -c "import secrets; print(secrets.token_hex(32))")
+export GOKU_PORTAL_USERNAME="goku"
+export GOKU_PORTAL_PASSWORD_HASH="pbkdf2:sha256:..."   # from the script above
+```
+
+The app refuses to start without these two unless `GOKU_MOCK_HARDWARE=1` —
+in mock mode it falls back to a dev-only username/password and prints it to
+the console on startup, so local iteration doesn't need a hash first.
+
+| Variable | Default | Purpose |
+|-----------|----------|----------|
+| `GOKU_SECRET_KEY` | *(required)* | signs session cookies — changing it logs everyone out |
+| `GOKU_PORTAL_USERNAME` | `goku` | portal login username |
+| `GOKU_PORTAL_PASSWORD_HASH` | *(required)* | from `scripts/set_portal_password.py` — never the plaintext |
+| `GOKU_SESSION_LIFETIME_MIN` | `720` (12h) | inactivity timeout before re-login is required |
+| `GOKU_LOGIN_MAX_ATTEMPTS` | `5` | failed logins allowed per source IP per window |
+| `GOKU_LOGIN_WINDOW_SEC` | `300` | window (seconds) the attempt limit above applies over |
+
+### 4️⃣ Run the app
 
 ```bash
 python run.py
 ```
 
-Then open in your browser:
+Then open in your browser and log in:
 
 ```bash
 http://<pi-ip>:8000
@@ -80,12 +111,17 @@ http://<pi-ip>:8000
 
 | Action | Method |
 |--------|---------|
+| Log in | `/login` — required for everything below |
 | View live stream | open `/` |
 | Arrow keys | move camera |
 | **C** | center |
 | Snapshot | saves JPEG + JSON in `captures/` |
 | Record (10 s default) | saves MP4 + JSON in `captures/` |
 | Gallery | `/gallery` → preview / download / delete |
+| Log out | button in the nav bar (`POST /logout`) |
+
+`/health` is intentionally the one endpoint that stays open with no login —
+that's what the systemd watchdog and any uptime monitor should poll.
 
 Override storage path:
 

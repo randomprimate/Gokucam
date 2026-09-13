@@ -128,9 +128,14 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# Project specific
+# Project specific — capture output (snapshots/recordings + sidecar metadata),
+# scoped to the captures dir so it can't accidentally swallow real repo files
+# like package.json.
 captures/
-*.jpg
-*.mp4
-*.avi
-*.json
+captures/*.jpg
+captures/*.mp4
+captures/*.avi
+captures/*.json
+
+# Node (OpenSpec tooling only — the app itself is Python)
+node_modules/
