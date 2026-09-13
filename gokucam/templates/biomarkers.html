@@ -1,0 +1,60 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>GokuCam — Biomarkers</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="wrap">
+    <h2>Biomarkers</h2>
+    <div class="nav">
+      <a href="{{ url_for('index') }}">← Back to Live</a>
+      <a href="{{ url_for('gallery') }}">📁 Gallery</a>
+      <form method="post" action="{{ url_for('logout') }}"><button type="submit" class="btn">Log out</button></form>
+    </div>
+
+    {% if not calibration %}
+      <p class="muted">No measurement calibration set yet — open a snapshot below and use "Measure" to calibrate against a known distance first.</p>
+    {% else %}
+      <p class="muted">Calibration: {{ '%.1f'|format(calibration['px_per_cm']) }} px/cm</p>
+    {% endif %}
+
+    <h3>Log a feeding</h3>
+    {% if error %}<p class="login-error">{{ error }}</p>{% endif %}
+    <form method="post" action="{{ url_for('api_feeding') }}" class="login-form" style="max-width:420px">
+      <label for="food">Food</label>
+      <input id="food" name="food" type="text" required placeholder="e.g. hibiscus, greens, protein">
+      <label for="portion">Portion</label>
+      <input id="portion" name="portion" type="text" placeholder="e.g. 1 cup">
+      <label for="note">Note</label>
+      <input id="note" name="note" type="text" placeholder="optional">
+      <button type="submit" class="btn wide">Log feeding</button>
+    </form>
+
+    <h3 style="margin-top:24px">History</h3>
+    {% if not history %}
+      <p class="muted">Nothing recorded yet.</p>
+    {% else %}
+      <div class="grid">
+        {% for e in history %}
+          <div class="card">
+            {% if e.kind == 'snapshot' %}
+              <a href="{{ url_for('measure_page', snapshot_id=e.id) }}"><img src="{{ e.url }}" alt="snapshot"></a>
+              <div class="filename">📷 {{ e.reason }} snapshot</div>
+            {% elif e.kind == 'feeding' %}
+              <div class="thumb icon"><div class="badge">🍽️</div></div>
+              <div class="filename">{{ e.food }}{% if e.portion %} — {{ e.portion }}{% endif %}</div>
+              {% if e.note %}<div class="filename muted">{{ e.note }}</div>{% endif %}
+            {% elif e.kind == 'measurement' %}
+              <div class="thumb icon"><div class="badge">📏</div></div>
+              <div class="filename">{{ '%.1f'|format(e.cm_distance) }} cm</div>
+            {% endif %}
+            <div class="card-row"><span class="pill">{{ e.when }}</span></div>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </div>
+</body>
+</html>

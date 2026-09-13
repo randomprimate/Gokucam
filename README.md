@@ -119,15 +119,35 @@ http://<pi-ip>:8000
 | Record (10 s default) | saves MP4 + JSON in `captures/` |
 | Gallery | `/gallery` → preview / download / delete |
 | Log out | button in the nav bar (`POST /logout`) |
+| Biomarkers dashboard | `/biomarkers` → feeding log + snapshot/measurement history |
+| Log a feeding | form on `/biomarkers` |
+| Measure growth from a photo | click "Measure" on any snapshot in `/biomarkers` |
 
 `/health` is intentionally the one endpoint that stays open with no login —
 that's what the systemd watchdog and any uptime monitor should poll.
 
-Override storage path:
+Override storage paths — and for anything beyond casual testing, move both
+off the boot SD card (a Pi writing hourly snapshots + a growth database to
+the same SD card it boots from is asking for a corrupted card) onto a USB
+SSD, and back up `gokucam.db` offsite periodically (e.g. a cron'd `rsync`)
+since it's now the record of Goku's growth history, not just cache:
 
 ```bash
-export GOKU_SNAP_DIR=/mnt/storage/gokucam
+export GOKU_SNAP_DIR=/mnt/storage/gokucam/captures
+export GOKU_DB_PATH=/mnt/storage/gokucam/gokucam.db
 ```
+
+### 📈 Measuring growth
+
+The measurement tool computes real-world distance from two clicked points
+on a photo, using a pixel-per-cm calibration — it does not detect the shell
+for you. For this to mean anything, place a small fixed reference marker
+(a ruler, or anything of a known length) at a fixed distance from the
+camera, ideally near the basking spot. The first time you use `/biomarkers
+→ Measure` on a photo containing that marker, click its two ends and enter
+its real length to establish calibration; every measurement afterward uses
+the most recent calibration until you recalibrate (e.g. after moving the
+camera).
 
 ## ⚡ Performance / Tuning
 
@@ -146,6 +166,8 @@ Default values balance quality & CPU load for Raspberry Pi 3–4:
 | `GOKU_MOCK_HARDWARE` | `0` | `1` = synthetic camera/servos, no Pi hardware needed |
 | `GOKU_CAM_WATCHDOG_SEC` | `5` | how often the camera health check runs |
 | `GOKU_CAM_STALE_SEC` | `8` | frame age before the stream is considered hung |
+| `GOKU_SNAPSHOT_INTERVAL_MIN` | `60` | how often the scheduler takes an automatic snapshot |
+| `GOKU_DB_PATH` | `./gokucam.db` | biomarker datastore (snapshots index, feeding log, measurements) |
 
 > 💡 **Tip:** If CPU usage exceeds ~70% in Grafana, reduce `FPS` or `JPEG_Q`.  
 > On Raspberry Pi 3, settings like `CAM_SIZE=(854,480)` and `FPS=10` still give smooth viewing with much less heat.

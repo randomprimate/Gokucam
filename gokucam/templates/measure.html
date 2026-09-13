@@ -1,0 +1,143 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>GokuCam — Measure</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <style>
+    .measure-stage{position:relative; display:inline-block; max-width:100%;}
+    .measure-stage img{display:block; max-width:100%; border-radius:12px;}
+    .measure-stage canvas{position:absolute; top:0; left:0; width:100%; height:100%; cursor:crosshair;}
+    .measure-panel{margin-top:12px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
+    .measure-panel input{width:100px; padding:8px 10px; border-radius:8px; border:1px solid var(--border); background:var(--card); color:var(--fg);}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h2>Measure</h2>
+    <div class="nav">
+      <a href="{{ url_for('biomarkers') }}">← Back to Biomarkers</a>
+    </div>
+
+    <p class="muted">Click two points on the photo (e.g. the two ends of the reference marker to calibrate, or the two ends of the shell to measure).</p>
+
+    <div class="measure-stage">
+      <img id="photo" src="{{ image_url }}" alt="snapshot to measure">
+      <canvas id="overlay"></canvas>
+    </div>
+
+    <div class="measure-panel">
+      <span id="px-readout" class="pill">no points yet</span>
+
+      <label for="known-cm">Known distance (cm):</label>
+      <input id="known-cm" type="number" step="0.1" min="0.1">
+      <button id="save-calibration" class="btn">Save as calibration</button>
+
+      {% if has_calibration %}
+        <button id="save-measurement" class="btn">Save as measurement</button>
+      {% endif %}
+    </div>
+    <p id="result" class="muted"></p>
+  </div>
+
+<script>
+const snapshotId = {{ snapshot_id }};
+const img = document.getElementById('photo');
+const canvas = document.getElementById('overlay');
+const ctx = canvas.getContext('2d');
+let points = [];
+
+function resizeCanvas() {
+  canvas.width = img.clientWidth;
+  canvas.height = img.clientHeight;
+  draw();
+}
+img.addEventListener('load', resizeCanvas);
+if (img.complete) resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#e08a46';
+  ctx.strokeStyle = '#e08a46';
+  ctx.lineWidth = 2;
+  points.forEach(p => {
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  if (points.length === 2) {
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+    ctx.lineTo(points[1].x, points[1].y);
+    ctx.stroke();
+  }
+}
+
+function pixelDistance() {
+  // Convert displayed (CSS-pixel) coordinates to natural image pixels,
+  // since calibration/measurement must be consistent regardless of how
+  // large the browser happens to render the photo.
+  const scale = img.naturalWidth / img.clientWidth;
+  const dx = (points[1].x - points[0].x) * scale;
+  const dy = (points[1].y - points[0].y) * scale;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+canvas.addEventListener('click', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  if (points.length >= 2) points = [];
+  points.push({x, y});
+  draw();
+  if (points.length === 2) {
+    const px = pixelDistance();
+    document.getElementById('px-readout').textContent = px.toFixed(1) + ' px';
+  } else {
+    document.getElementById('px-readout').textContent = 'click a second point';
+  }
+});
+
+async function postJSON(url, body) {
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body),
+  });
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || 'request failed');
+  return j;
+}
+
+document.getElementById('save-calibration').addEventListener('click', async () => {
+  if (points.length !== 2) return alert('Click two points first.');
+  const realCm = parseFloat(document.getElementById('known-cm').value);
+  if (!realCm || realCm <= 0) return alert('Enter the known real-world distance in cm.');
+  try {
+    const j = await postJSON('{{ url_for("api_calibration") }}', {
+      px_distance: pixelDistance(), real_cm: realCm, snapshot_id: snapshotId,
+    });
+    document.getElementById('result').textContent = `Calibrated: ${j.px_per_cm.toFixed(1)} px/cm`;
+  } catch (e) {
+    alert(e.message);
+  }
+});
+
+const measureBtn = document.getElementById('save-measurement');
+if (measureBtn) {
+  measureBtn.addEventListener('click', async () => {
+    if (points.length !== 2) return alert('Click two points first.');
+    try {
+      const j = await postJSON('{{ url_for("api_measurement") }}', {
+        px_distance: pixelDistance(), snapshot_id: snapshotId,
+      });
+      document.getElementById('result').textContent = `Recorded measurement: ${j.cm_distance.toFixed(1)} cm`;
+    } catch (e) {
+      alert(e.message);
+    }
+  });
+}
+</script>
+</body>
+</html>

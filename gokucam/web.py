@@ -1,11 +1,12 @@
 import os
-from datetime import timedelta
+from datetime import timedelta, datetime
 from pathlib import Path
 from flask import Flask, Response, request, jsonify, render_template, send_from_directory, abort, url_for, redirect
 from .config import STEP_DEG, SNAP_DIR, SECRET_KEY, SESSION_LIFETIME_MIN
 from .camera_manager import camera
 from .servo_controller import servos
 from . import auth
+from . import store
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
 app.secret_key = SECRET_KEY or "dev-only-insecure-key-mock-hardware-only"
@@ -98,6 +99,7 @@ def api_sweep():
 def api_snapshot():
     try:
         path = camera.snapshot()
+        store.record_snapshot(str(path), reason="manual")
         return jsonify({"saved": str(path)})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -169,5 +171,84 @@ def gallery():
             "size": f.stat().st_size,
         })
     return render_template("gallery.html", files=files)
+
+# --- Biomarkers ---
+def _snapshot_media_url(path_str: str) -> str:
+    return url_for("media", name=Path(path_str).name)
+
+def _prepared_history():
+    history = store.recent_history()
+    for e in history:
+        e["when"] = datetime.fromtimestamp(e["ts"]).strftime("%Y-%m-%d %H:%M")
+        if e["kind"] == "snapshot":
+            e["url"] = _snapshot_media_url(e["path"])
+    return history
+
+@app.route("/biomarkers")
+@auth.login_required
+def biomarkers():
+    return render_template("biomarkers.html", history=_prepared_history(),
+                            calibration=store.get_latest_calibration(), error=None)
+
+@app.route("/api/feeding", methods=["POST"])
+@auth.login_required
+def api_feeding():
+    try:
+        store.log_feeding(
+            food=request.form.get("food", ""),
+            portion=request.form.get("portion", ""),
+            note=request.form.get("note", ""),
+        )
+    except ValueError as e:
+        return render_template("biomarkers.html", history=_prepared_history(),
+                                calibration=store.get_latest_calibration(), error=str(e)), 400
+    return redirect(url_for("biomarkers"))
+
+@app.route("/biomarkers/measure/<int:snapshot_id>")
+@auth.login_required
+def measure_page(snapshot_id):
+    snap = store.get_snapshot(snapshot_id)
+    if not snap:
+        abort(404)
+    calibration = store.get_latest_calibration()
+    return render_template(
+        "measure.html",
+        snapshot_id=snapshot_id,
+        image_url=_snapshot_media_url(snap["path"]),
+        has_calibration=calibration is not None,
+    )
+
+@app.route("/api/calibration", methods=["POST"])
+@auth.login_required
+def api_calibration():
+    data = request.get_json(silent=True) or {}
+    try:
+        px_distance = float(data["px_distance"])
+        real_cm = float(data["real_cm"])
+        snapshot_id = data.get("snapshot_id")
+        if px_distance <= 0 or real_cm <= 0:
+            raise ValueError
+    except (KeyError, TypeError, ValueError):
+        return jsonify({"error": "px_distance and real_cm must be positive numbers"}), 400
+    cal_id = store.set_calibration(px_distance / real_cm, snapshot_id=snapshot_id)
+    return jsonify({"calibration_id": cal_id, "px_per_cm": px_distance / real_cm})
+
+@app.route("/api/measurement", methods=["POST"])
+@auth.login_required
+def api_measurement():
+    data = request.get_json(silent=True) or {}
+    calibration = store.get_latest_calibration()
+    if not calibration:
+        return jsonify({"error": "no calibration established yet — calibrate against a known distance first"}), 400
+    try:
+        px_distance = float(data["px_distance"])
+        snapshot_id = data.get("snapshot_id")
+        if px_distance <= 0:
+            raise ValueError
+    except (KeyError, TypeError, ValueError):
+        return jsonify({"error": "px_distance must be a positive number"}), 400
+    cm_distance = px_distance / calibration["px_per_cm"]
+    m_id = store.record_measurement(snapshot_id, calibration["id"], px_distance, cm_distance)
+    return jsonify({"measurement_id": m_id, "cm_distance": cm_distance})
 
 

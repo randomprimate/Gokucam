@@ -50,3 +50,8 @@ LOGIN_WINDOW_SEC = int(os.getenv("GOKU_LOGIN_WINDOW_SEC", "300"))  # 5 min
 # real credentials are configured — never used outside mock mode.
 DEV_DEFAULT_USERNAME = "goku"
 DEV_DEFAULT_PASSWORD = "shellyeah"
+
+# Biomarker datastore + scheduled capture
+DB_PATH = Path(os.getenv("GOKU_DB_PATH", str(BASE_DIR / "gokucam.db")))
+# float (not int) so tests/dev can use fractional minutes (e.g. "0.1") for a fast interval
+SNAPSHOT_INTERVAL_MIN = float(os.getenv("GOKU_SNAPSHOT_INTERVAL_MIN", "60"))
