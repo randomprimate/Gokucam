@@ -107,6 +107,9 @@ Default values balance quality & CPU load for Raspberry Pi 3–4:
 | `GOKU_TILT_PORT` | `P1` | vertical servo port |
 | `GOKU_PAN_DIR` / `GOKU_TILT_DIR` | `1` | flip axis with –1 if reversed |
 | `GOKU_KEEPALIVE` | `2` seconds | refresh servo PWM |
+| `GOKU_MOCK_HARDWARE` | `0` | `1` = synthetic camera/servos, no Pi hardware needed |
+| `GOKU_CAM_WATCHDOG_SEC` | `5` | how often the camera health check runs |
+| `GOKU_CAM_STALE_SEC` | `8` | frame age before the stream is considered hung |
 
 > 💡 **Tip:** If CPU usage exceeds ~70% in Grafana, reduce `FPS` or `JPEG_Q`.  
 > On Raspberry Pi 3, settings like `CAM_SIZE=(854,480)` and `FPS=10` still give smooth viewing with much less heat.
@@ -141,39 +144,56 @@ Each snapshot or recording generates a matching `.json` metadata file:
 ## 🧠 Known Issues
 
 - MJPEG + recording currently use separate camera sessions (sequential)  
-- Only one Flask process should run — systemd prevents duplicates  
+- Only one Flask process should run — systemd + the `flock` guard below prevent duplicates
+
+---
+
+## 🛟 Reliability
+
+The camera and servo layers never crash the process anymore if hardware isn't
+ready — a missing camera or an unreachable Robot HAT puts that subsystem into
+a degraded state (visible on `/health` and as a placeholder frame on the
+stream) instead of taking the whole app down. Background threads keep
+retrying and reconnect automatically once hardware comes back.
+
+- **`GOKU_MOCK_HARDWARE=1`** — run with a synthetic video feed and no-op
+  servos, no Pi/camera/HAT required. Use this for portal/UI/pipeline work on
+  a laptop.
+- **`/health`** — reports `{"ok": bool, "camera": {...}, "servo": {...}}`,
+  including backend (`picamera2`/`robot_hat` vs `mock`), availability, and
+  how stale the last frame is. Point an uptime monitor at this, not just at
+  the port being open.
+- **Camera watchdog** — if the MJPEG stream stops producing frames for
+  longer than `GOKU_CAM_STALE_SEC` (default 8s), the session is restarted
+  automatically. Tune with `GOKU_CAM_WATCHDOG_SEC` / `GOKU_CAM_STALE_SEC`.
+- **systemd watchdog** — the app pings systemd's watchdog (via `sd_notify`)
+  only while camera + servo report healthy. If it hangs instead of crashing,
+  systemd notices via `WatchdogSec` (see below) and restarts it anyway —
+  something `Restart=on-failure` alone can't do.
 
 ---
 
 ## 🪄 Run as systemd service (Recommended)
 
-Create `/etc/systemd/system/gokucam.service`:
-
-```ini
-[Unit]
-Description=GokuCam Server
-After=network-online.target
-
-[Service]
-User=goku
-WorkingDirectory=/home/goku/gokucam
-Environment="PYTHONUNBUFFERED=1"
-ExecStart=/usr/bin/flock -n /run/gokucam.lock \
-  /home/goku/gokucam/.venv/bin/python /home/goku/gokucam/run.py
-Restart=on-failure
-RuntimeDirectory=gokucam
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Enable and start:
+The unit file lives at [`systemd/gokucam.service`](systemd/gokucam.service) —
+that file is the source of truth; keep this README in sync with it rather
+than maintaining a second copy.
 
 ```bash
+sudo cp systemd/gokucam.service /etc/systemd/system/gokucam.service
 sudo systemctl daemon-reload
 sudo systemctl enable --now gokucam
 sudo systemctl status gokucam
 ```
+
+Key choices baked into that unit:
+
+- `Restart=always` (not just `on-failure`) — restarts even after a clean
+  exit or an OOM kill, not only a crash.
+- `Type=notify` + `WatchdogSec=30` — pairs with the app's `sd_notify` calls
+  above so a hung-but-alive process gets restarted too.
+- `flock -n /run/gokucam/gokucam.lock` — guarantees only one instance ever
+  holds the camera at once, even if you `systemctl start` it twice.
 
 ### 🔒 Remote Access with Tailscale
 

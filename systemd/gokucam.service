@@ -1,19 +1,20 @@
-
----
-
-## `systemd/gokucam.service`
-
-```ini
 [Unit]
 Description=GokuCam server
 After=network-online.target
+Wants=network-online.target
 
 [Service]
+Type=notify
 User=goku
 WorkingDirectory=/home/goku/gokucam
 Environment="PYTHONUNBUFFERED=1"
-ExecStart=/home/goku/gokucam/.venv/bin/python /home/goku/gokucam/run.py
-Restart=on-failure
+RuntimeDirectory=gokucam
+ExecStart=/usr/bin/flock -n /run/gokucam/gokucam.lock \
+  /home/goku/gokucam/.venv/bin/python /home/goku/gokucam/run.py
+Restart=always
+RestartSec=3
+TimeoutStartSec=30
+WatchdogSec=30
 
 [Install]
 WantedBy=multi-user.target

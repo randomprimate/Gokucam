@@ -79,7 +79,12 @@ def api_record():
 # --- Health ---
 @app.route("/health")
 def health():
-    return jsonify({"ok": True, **servos.state()})
+    healthy = camera.is_healthy() and servos.is_healthy()
+    return jsonify({
+        "ok": healthy,
+        "camera": camera.status(),
+        "servo": servos.status(),
+    })
 
 @app.route("/media/<path:name>")
 def media(name):

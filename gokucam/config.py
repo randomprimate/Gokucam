@@ -24,6 +24,16 @@ TILT_MIN, TILT_MAX = map(int, os.getenv("GOKU_TILT_RANGE", "-60,60").split(","))
 STEP_DEG = int(os.getenv("GOKU_STEP", "8"))
 SERVO_KEEPALIVE_SEC = int(os.getenv("GOKU_KEEPALIVE", "2"))  # 0 = disable
 
+# Reliability / dev mode
+# Set GOKU_MOCK_HARDWARE=1 to run without a real camera or Robot HAT
+# (synthetic stream, no-op servos) — for developing off the Pi.
+MOCK_HARDWARE = os.getenv("GOKU_MOCK_HARDWARE", "0").lower() in ("1", "true", "yes", "on")
+
+# Camera self-healing: how often to check the stream, and how stale a
+# frame has to be before we consider it hung and restart the session.
+CAM_WATCHDOG_SEC = int(os.getenv("GOKU_CAM_WATCHDOG_SEC", "5"))
+CAM_STALE_SEC    = int(os.getenv("GOKU_CAM_STALE_SEC", "8"))
+
 # Server
 HOST = os.getenv("GOKU_HOST", "0.0.0.0")
 PORT = int(os.getenv("GOKU_PORT", "8000"))
