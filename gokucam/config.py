@@ -55,3 +55,15 @@ DEV_DEFAULT_PASSWORD = "shellyeah"
 DB_PATH = Path(os.getenv("GOKU_DB_PATH", str(BASE_DIR / "gokucam.db")))
 # float (not int) so tests/dev can use fractional minutes (e.g. "0.1") for a fast interval
 SNAPSHOT_INTERVAL_MIN = float(os.getenv("GOKU_SNAPSHOT_INTERVAL_MIN", "60"))
+
+# AI insights (Claude health checks + caption drafting)
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+AI_MOCK = os.getenv("GOKU_AI_MOCK", "0").lower() in ("1", "true", "yes", "on")
+AI_HEALTH_MODEL = os.getenv("GOKU_AI_HEALTH_MODEL", "claude-haiku-4-5-20251001")
+AI_CAPTION_MODEL = os.getenv("GOKU_AI_CAPTION_MODEL", "claude-sonnet-5")
+# All intervals as floats (hours/days) so tests can use fractional values for fast cycles
+AI_HEALTHCHECK_INTERVAL_HOURS = float(os.getenv("GOKU_AI_HEALTHCHECK_INTERVAL_HOURS", "24"))
+AI_ROUNDUP_INTERVAL_DAYS = float(os.getenv("GOKU_AI_ROUNDUP_INTERVAL_DAYS", "7"))
+AI_HIGHLIGHT_INTERVAL_DAYS = float(os.getenv("GOKU_AI_HIGHLIGHT_INTERVAL_DAYS", "3"))
+AI_MAX_CALLS_PER_DAY = int(os.getenv("GOKU_AI_MAX_CALLS_PER_DAY", "10"))
+AI_MAX_IMAGE_DIM = int(os.getenv("GOKU_AI_MAX_IMAGE_DIM", "800"))

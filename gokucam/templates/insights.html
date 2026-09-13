@@ -1,0 +1,61 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>GokuCam — AI Insights</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="wrap">
+    <h2>AI Insights</h2>
+    <div class="nav">
+      <a href="{{ url_for('index') }}">← Back to Live</a>
+      <a href="{{ url_for('biomarkers') }}">📊 Biomarkers</a>
+      <form method="post" action="{{ url_for('logout') }}"><button type="submit" class="btn">Log out</button></form>
+    </div>
+
+    <h3>Draft captions awaiting review</h3>
+    {% if not pending %}
+      <p class="muted">Nothing pending — drafts show up here after a scheduled roundup or highlight run.</p>
+    {% else %}
+      <div class="grid">
+        {% for d in pending %}
+          <div class="card">
+            {% if d.image_url %}<img src="{{ d.image_url }}" alt="draft photo">{% endif %}
+            <div class="filename">{{ d.caption }}</div>
+            <div class="card-row">
+              <span class="pill">{{ d.cadence }} · {{ d.when }}</span>
+              <div class="btns">
+                <form method="post" action="{{ url_for('api_draft_approve', draft_id=d.id) }}">
+                  <button type="submit" class="btn">Approve</button>
+                </form>
+                <form method="post" action="{{ url_for('api_draft_reject', draft_id=d.id) }}">
+                  <button type="submit" class="btn danger">Reject</button>
+                </form>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <h3 style="margin-top:24px">Health notes</h3>
+    {% if not notes %}
+      <p class="muted">No health checks yet.</p>
+    {% else %}
+      <div class="grid">
+        {% for n in notes %}
+          <div class="card{{ ' concern' if n.concerning else '' }}">
+            <div class="filename">{{ n.summary }}</div>
+            <div class="card-row">
+              <span class="pill{{ ' pill-concern' if n.concerning else '' }}">
+                {{ '⚠️ concerning' if n.concerning else 'routine' }} · {{ n.when }}
+              </span>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </div>
+</body>
+</html>

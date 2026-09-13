@@ -51,3 +51,5 @@ button:hover,.btn:hover{background:#2c2c2c}
 .login-form button{margin-top:16px}
 .login-error{color:#e08a8a; font-size:13px}
 .nav{display:flex; justify-content:space-between; align-items:center; gap:8px}
+.card.concern{border-color:#5a1f1f; background:#2a1212}
+.pill-concern{border-color:#5a1f1f; color:#e08a8a}

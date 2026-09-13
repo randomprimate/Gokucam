@@ -45,6 +45,32 @@ CREATE TABLE IF NOT EXISTS measurements (
     cm_distance REAL NOT NULL,
     measured_at REAL NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS health_notes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    snapshot_id INTEGER REFERENCES snapshots(id),
+    summary TEXT NOT NULL,
+    concerning INTEGER NOT NULL DEFAULT 0,
+    raw_response TEXT,
+    created_at REAL NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS post_drafts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    snapshot_id INTEGER REFERENCES snapshots(id),
+    cadence TEXT NOT NULL CHECK (cadence IN ('roundup', 'highlight')),
+    caption TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending_review' CHECK (status IN ('pending_review', 'approved', 'rejected')),
+    created_at REAL NOT NULL,
+    reviewed_at REAL
+);
+
+CREATE TABLE IF NOT EXISTS ai_call_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    purpose TEXT NOT NULL,
+    called_at REAL NOT NULL,
+    ok INTEGER NOT NULL
+);
 """
 
 
@@ -153,3 +179,110 @@ def recent_history(limit: int = 50) -> list[dict]:
 
     events.sort(key=lambda e: e["ts"], reverse=True)
     return events[:limit]
+
+
+def latest_snapshot() -> Optional[sqlite3.Row]:
+    conn = _get_conn()
+    with _lock:
+        return conn.execute("SELECT * FROM snapshots ORDER BY captured_at DESC LIMIT 1").fetchone()
+
+
+def recent_feeding(limit: int = 10) -> list[sqlite3.Row]:
+    conn = _get_conn()
+    with _lock:
+        return conn.execute(
+            "SELECT * FROM feeding_log ORDER BY logged_at DESC LIMIT ?", (limit,)
+        ).fetchall()
+
+
+def recent_measurements(limit: int = 10) -> list[sqlite3.Row]:
+    conn = _get_conn()
+    with _lock:
+        return conn.execute(
+            "SELECT * FROM measurements ORDER BY measured_at DESC LIMIT ?", (limit,)
+        ).fetchall()
+
+
+# --- AI insights: health notes ---
+def record_health_note(snapshot_id: Optional[int], summary: str, concerning: bool, raw_response: str = "") -> int:
+    conn = _get_conn()
+    with _lock:
+        cur = conn.execute(
+            "INSERT INTO health_notes (snapshot_id, summary, concerning, raw_response, created_at) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (snapshot_id, summary, int(concerning), raw_response, time.time()),
+        )
+        conn.commit()
+        return cur.lastrowid
+
+
+def recent_health_notes(limit: int = 20) -> list[sqlite3.Row]:
+    conn = _get_conn()
+    with _lock:
+        return conn.execute(
+            "SELECT * FROM health_notes ORDER BY created_at DESC LIMIT ?", (limit,)
+        ).fetchall()
+
+
+# --- AI insights: post drafts ---
+def create_draft(snapshot_id: Optional[int], cadence: str, caption: str) -> int:
+    assert cadence in ("roundup", "highlight")
+    conn = _get_conn()
+    with _lock:
+        cur = conn.execute(
+            "INSERT INTO post_drafts (snapshot_id, cadence, caption, status, created_at) "
+            "VALUES (?, ?, ?, 'pending_review', ?)",
+            (snapshot_id, cadence, caption, time.time()),
+        )
+        conn.commit()
+        return cur.lastrowid
+
+
+def set_draft_status(draft_id: int, status: str) -> None:
+    assert status in ("approved", "rejected")
+    conn = _get_conn()
+    with _lock:
+        conn.execute(
+            "UPDATE post_drafts SET status = ?, reviewed_at = ? WHERE id = ?",
+            (status, time.time(), draft_id),
+        )
+        conn.commit()
+
+
+def pending_drafts(limit: int = 20) -> list[sqlite3.Row]:
+    conn = _get_conn()
+    with _lock:
+        return conn.execute(
+            "SELECT * FROM post_drafts WHERE status = 'pending_review' ORDER BY created_at DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+
+
+def approved_drafts(limit: int = 20) -> list[sqlite3.Row]:
+    conn = _get_conn()
+    with _lock:
+        return conn.execute(
+            "SELECT * FROM post_drafts WHERE status = 'approved' ORDER BY created_at DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+
+
+# --- AI insights: daily call cap ---
+def log_ai_call(purpose: str, ok: bool) -> None:
+    conn = _get_conn()
+    with _lock:
+        conn.execute(
+            "INSERT INTO ai_call_log (purpose, called_at, ok) VALUES (?, ?, ?)",
+            (purpose, time.time(), int(ok)),
+        )
+        conn.commit()
+
+
+def calls_today() -> int:
+    conn = _get_conn()
+    midnight = time.mktime(time.localtime()[:3] + (0, 0, 0, 0, 0, -1))
+    with _lock:
+        row = conn.execute(
+            "SELECT COUNT(*) AS n FROM ai_call_log WHERE called_at >= ?", (midnight,)
+        ).fetchone()
+        return row["n"]

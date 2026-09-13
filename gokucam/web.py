@@ -233,6 +233,31 @@ def api_calibration():
     cal_id = store.set_calibration(px_distance / real_cm, snapshot_id=snapshot_id)
     return jsonify({"calibration_id": cal_id, "px_per_cm": px_distance / real_cm})
 
+@app.route("/insights")
+@auth.login_required
+def insights():
+    notes = [dict(r) for r in store.recent_health_notes()]
+    for n in notes:
+        n["when"] = datetime.fromtimestamp(n["created_at"]).strftime("%Y-%m-%d %H:%M")
+    pending = [dict(r) for r in store.pending_drafts()]
+    for d in pending:
+        d["when"] = datetime.fromtimestamp(d["created_at"]).strftime("%Y-%m-%d %H:%M")
+        snap = store.get_snapshot(d["snapshot_id"]) if d["snapshot_id"] else None
+        d["image_url"] = _snapshot_media_url(snap["path"]) if snap else None
+    return render_template("insights.html", notes=notes, pending=pending)
+
+@app.route("/api/drafts/<int:draft_id>/approve", methods=["POST"])
+@auth.login_required
+def api_draft_approve(draft_id):
+    store.set_draft_status(draft_id, "approved")
+    return redirect(url_for("insights"))
+
+@app.route("/api/drafts/<int:draft_id>/reject", methods=["POST"])
+@auth.login_required
+def api_draft_reject(draft_id):
+    store.set_draft_status(draft_id, "rejected")
+    return redirect(url_for("insights"))
+
 @app.route("/api/measurement", methods=["POST"])
 @auth.login_required
 def api_measurement():

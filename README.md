@@ -149,6 +149,31 @@ its real length to establish calibration; every measurement afterward uses
 the most recent calibration until you recalibrate (e.g. after moving the
 camera).
 
+### 🤖 AI insights
+
+Set `ANTHROPIC_API_KEY` to turn on two background jobs, visible on the new
+`/insights` page:
+
+- A **health check** looks at the latest photo plus recent feeding/growth
+  history and writes a short observation, flagging anything that seems
+  worth a person looking into. It's an assistive note from limited data,
+  not a diagnosis.
+- **Caption drafting** runs on two cadences — a weekly-style roundup and a
+  more frequent single-moment highlight — and writes a draft Instagram
+  caption from a recent photo. **Nothing posts automatically**: every draft
+  waits in `/insights` as `pending_review` until you click Approve or
+  Reject. Nothing publishes those approved drafts yet either — that's the
+  next phase.
+
+Health checks use a cheaper/faster model by default (they run often and
+nobody reads them unless flagged); captions use a stronger one (they run
+rarely and represent Goku publicly). A hard daily call cap
+(`GOKU_AI_MAX_CALLS_PER_DAY`) is a cost safety net independent of the
+schedule intervals — it persists across restarts, so a scheduling bug
+can't quietly turn into a surprise bill. `GOKU_AI_MOCK=1` returns a canned
+response instead of calling the real API, for testing without spending
+budget.
+
 ## ⚡ Performance / Tuning
 
 Default values balance quality & CPU load for Raspberry Pi 3–4:
@@ -168,6 +193,15 @@ Default values balance quality & CPU load for Raspberry Pi 3–4:
 | `GOKU_CAM_STALE_SEC` | `8` | frame age before the stream is considered hung |
 | `GOKU_SNAPSHOT_INTERVAL_MIN` | `60` | how often the scheduler takes an automatic snapshot |
 | `GOKU_DB_PATH` | `./gokucam.db` | biomarker datastore (snapshots index, feeding log, measurements) |
+| `ANTHROPIC_API_KEY` | *(unset = AI insights off)* | enables health checks + caption drafting |
+| `GOKU_AI_MOCK` | `0` | `1` = canned AI responses, no API calls or cost |
+| `GOKU_AI_HEALTH_MODEL` | `claude-haiku-4-5-20251001` | model for frequent health checks |
+| `GOKU_AI_CAPTION_MODEL` | `claude-sonnet-5` | model for infrequent, public-facing captions |
+| `GOKU_AI_HEALTHCHECK_INTERVAL_HOURS` | `24` | how often the health check runs |
+| `GOKU_AI_ROUNDUP_INTERVAL_DAYS` | `7` | weekly-style caption draft cadence |
+| `GOKU_AI_HIGHLIGHT_INTERVAL_DAYS` | `3` | single-moment caption draft cadence |
+| `GOKU_AI_MAX_CALLS_PER_DAY` | `10` | hard cap across all AI calls, resets at local midnight |
+| `GOKU_AI_MAX_IMAGE_DIM` | `800` | photos are downscaled to this before upload, to control cost |
 
 > 💡 **Tip:** If CPU usage exceeds ~70% in Grafana, reduce `FPS` or `JPEG_Q`.  
 > On Raspberry Pi 3, settings like `CAM_SIZE=(854,480)` and `FPS=10` still give smooth viewing with much less heat.
